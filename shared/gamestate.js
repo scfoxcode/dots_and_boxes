@@ -1,90 +1,165 @@
-function Point(x, y) {
-	this.x = x;
-	this.y = y;
+export const Ownership = Object.freeze({'NONE': 0, 'PLAYER1': 1, 'PLAYER2': 2, 'OBSERVER': 3});
+export const Errors = Object.freeze({'ILLEGALMOVE': 'ILLEGALMOVE'});
+
+export function Point(x, y) {
+	this.x = Math.round(x);
+	this.y = Math.round(y);
+	this.horizontalLine = null;
+	this.verticalLine = null;
 }
 
-Point.prototype.Equals = function(point) {
-	return (this.x === point.x && this.y === point.y);
+export function Square(x, y) {
+	this.x = Math.round(x);
+	this.y = Math.round(y);
+	this.points = []; // topLeft topRight bottomRight bottomLeft, handle to board.points
+	this.ownership = Ownership.NONE;
 }
 
-function Line(x1, y1, x2, y2, ownership = -1) {
-	this.ownership = ownership;
-	this.points = [new Point(x1, y1), new Point(x2, y2)];
+export function Move(x, y, horizontal, player = Ownership.NONE) {
+	this.x = Math.round(x);
+	this.y = Math.round(y);
+	this.isHorizontal = horizontal;
+	this.madeBy = player;
 }
 
-// Helper to reduce searches needed
-Line.prototype.IsHorizontal = function() {
-	return this.points[0].y === this.points[1].y;
+export function Board(size) {
+	this.size = Math.round(size);
+	this.points = []; // 2D array of Point objects
+	this.squares = []; // 2D array of Square objects
 }
 
-// Compares the location of two lines, ignores ownership
-Line.prototype.LineLocationsMatch = function(line) {
-	return (this.points[0].Equals(line.points[0]) &&
-			this.points[1].Equals(line.points[1])) ||
-			(this.points[0].Equals(line.points[1]) &&
-			this.points[1].Equals(line.points[0]));
+Board.prototype.Init = function () {
+	// Initialise points
+	for (let x=0; x<this.size; x++) {
+		this.points[x] = [];
+		for (let y=0; y<this.size; y++) {
+			const point = new Point(x, y);
+			if (x < this.size -1) {
+				point.horizontalLine = Ownership.NONE;
+			}
+			if (y < this.size - 1) {
+				point.verticalLine = Ownership.NONE;
+			}
+			this.points[x][y] = point;	
+		}
+	}
+
+	// Initialise squares, careful, we have pointers here, might have to reconstruct if sending this state via network?
+	for (let x=0; x<this.size -1; x++) {
+		this.points[x] = [];
+		for (let y=0; y<this.size - 1; y++) {
+			const square = new Square(x, y);
+			square.points[0] = this.points[x][y];
+			square.points[1] = this.points[x + 1][y];
+			square.points[2] = this.points[x + 1][y + 1];
+			square.points[3] = this.points[x][y + 1];
+		}
+	}
 }
 
-function GameState() {
+export function IsSquareComplete(square) {
+	const ownershipValues = [];
+	ownershipValues.push(square.points[0].horizontalLine);
+	ownershipValues.push(square.points[0].verticalLine);
+	ownershipValues.push(square.points[1].verticalLine);
+	ownershipValues.push(square.points[2].horizontalLine);
+	return !ownershipValues.find(Ownership.NONE);
+}
+
+// Returns true if a square was captured
+export function UpdateSquaresAfterValidMove(board, move, player) {
+	// Get squares that include the origin point in this move
+	const squares = [];
+	if (move.x > 0 && move.y > 0) { // top left should exist 
+		squares.push(board.squares[move.x -1][move.y -1]);
+	}
+	if (move.x < board.size - 1 && move.y > 0) { // top right should exist
+		squares.push(board.squares[move.x][move.y -1]);
+	}
+	if (move.x < board.size -1 && move.y < board.size -1) { // bottom right should exist
+		squares.push(board.squares[move.x][move.y]);
+	}
+	if (move.x > 0 && move.y < board.size -1) { // bottom left should exist
+		squares.push(board.squares[move.x -1][move.y]);
+	}
+	let squareWasCaptured = false;
+	squares.forEach(square => {
+		if (square.ownership === Ownership.NONE && IsSquareComplete(square)) {
+			square.ownershipo = player;
+			squareWasCaptured = true;
+		}
+	});
+	return squareWasCaptured;
+}
+
+// Trusn true if move is legal, also fills in errors list if provided
+export function IsMoveLegal(board, move, errors) {
+	if (move.x >= board.size ||
+		move.y >= board.size ||
+		move.x < 0 ||
+		move.y < 0) {
+		if (Array.isArray(errors)) {
+			errors.push(new Error(`${Errors.ILLEGALMOVE} - Move was out of bounds x: ${move.x} y: ${move.y} for board size: ${board.size}`));
+		}
+		return false;
+	}
+	const point = board.points[move.x][move.y];
+	const directionKey = move.isHorizontal ? 'horizontalLine' : 'verticalLine';
+	if (point[directionKey] !== Ownership.NONE) {
+		if (Array.isArray(errors)) {
+			errors.push(new Error(`${Errors.ILLEGALMOVE} - Line already played x: ${move.x} y: ${move.y} ${directionKey} for player: ${player}`));
+		}
+		return false;
+	}
+	return true;
+}
+
+// Returns true if one or more squares were captured
+export function ApplyMoveToBoard(board, move, player) {
+	const errors = [];
+	const legal = IsMoveLegal(board, move, errors);
+	if (errors.length) {
+		throw errors;
+	} else {
+		const point = board.points[move.x][move.y];
+		const directionKey = move.isHorizontal ? 'horizontalLine' : 'verticalLine';
+		point[directionKey] = player;
+		const captured = UpdateSquaresAfterValidMove(board, move, player);
+		return captured;
+	}
+}
+
+Board.prototype.ApplyMove = function(move, player) {
+	return ApplyMoveToBoard(this, move, player); 
+}
+
+Board.prototype.GetLegalMoves = function() {
+	const legalMoves = [];
+	for (let x=0; x<this.size; x++) {
+		for (let y=0; y<this.size; y++) {
+			if (this.points[x][y].horizontalLine === Ownership.NONE) {
+				legalMoves.push(new Move(x, y, true, Ownership.NONE));
+			}
+			if (this.points[x][y].verticalLine === Ownership.NONE) {
+				legalMoves.push(new Move(x, y, false, Ownership.NONE));
+			}
+		}
+	}
+	return legalMoves;
+}
+
+export function GameState() {
 	this.turn = 0;
-	this.playersTurn = 0; // Alternate between 0 and 1
+	this.playersTurn = Ownership.NONE; 
 	this.illegalMove = false; // If this is ever true, game over
 	this.boardSize = 10; // Board is always square, this is the number of dots
-	this.ownership = []; // Array of nums for square ownership, -1 for un-owned, after that player number
-	this.horizontalLines = [];
-	this.verticalLines = [];
+	this.boardState = null; // Will contain a board object
 }
 
-GameState.prototype.LegalMoves = function () {
-	const lines = [...this.horizontalLines, ...this.verticalLines];
-	return lines.filter(l => l.ownership === -1);
+GameState.prototype.InitBoard = function (boardSize = 10) {
+	this.boardSize = boardSize;
+	this.boardState = new Board(this.boardSize);
+	this.boardState.Init();
 }
 
-function FindLineIfLegal(state, line) {
-	// Find the line in state that matches the provided line
-	const searchList = line.IsHorizontal() ? state.horizontalLines : state.verticalLines;
-	const foundLines = searchList.filter(l => l.LineLocationsMatch(line));
-	if (!foundLines.length || foundLines[0].ownership !== -1) {
-		return false;
-	}
-	return foundLines[0];
-}
 
-function ApplyMove(state, line) {
-	const legalLine = FindLineIfLegal(state, line);
-	if (!legalLine) {
-		return false;
-	}
-	// Update line
-	legalLine.ownership = state.playersTurn;
-
-	// Build a list of all squares this line is part of
-	const squares = [];
-	const xIndex = Math.min(legalLine.points[0].x, legalLine.points[1].x);	
-	const xIndex = Math.min(legalLine.points[0].y, legalLine.points[1].y);	
-	const yIndex = legalLine.points[0].y;
-	const squaresWidth = boardSize - 1;
-	if (legalLine.IsHorizontal()) {
-		if (yIndex > 0) { // Push square above the line
-			squares.push(Math.round(squaresWidth * (yIndex - 1) + xIndex));
-		}
-		if (yIndex < squaresWidth - 1) { // Push square below the line
-			squares.push(Math.round(squaresWidth * yIndex + xIndex));
-		}
-	} else {
-		if (xIndex > 0) { // Push square left of the line
-			squares.push(Math.round(squaresWidth * yIndex + (xIndex - 1)));
-		}
-		if (xIndex < squaresWidth - 1) { // Push square right of the line
-			squares.push(Math.round(squaresWidth * yIndex + xIndex));
-		}
-	}
-
-	squares.forEach(square => {
-		if (state.ownership[square] !== -1) {
-			return;
-		}
-		// We need to check to see if this square is now completed
-	});
-
-}

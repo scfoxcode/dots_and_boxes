@@ -1,14 +1,25 @@
 const port = process.argv[2] || 5000;
 
 // Create server, and initialise instance
-const koa = require('koa');
-const app = new koa();
-const http = require('http').Server(app);
-const io = require('socket.io')(http);
+import readline from 'readline';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import { PlayGame } from './servergame.js';
+const httpServer = createServer();
+const io = new Server(httpServer, { 
+		cors: {
+			origin: '*',
+		}
+	}
+);
+const game = null; // Global game state object. Only 1 game may progress at a time
+const players = {
+	Player1: null,
+	Player2: null,
+};
+const observers = [];
 
-console.log("port", port);
-
-http.listen(port, () => {
+httpServer.listen(port, () => {
 	console.log(`Server listening on port ${port} ...\n`);
 	rl.setPrompt('server$: ');
 	rl.prompt();
@@ -16,23 +27,53 @@ http.listen(port, () => {
 
 // Handle new connections
 io.on('connection', (socket) => {
-	
+	if (socket.handshake.query.type === 'Observer') {
+		console.log('Observer connected');
+		observers.push(socket);
+	}
 });
 
+/***** START HANDLE TERMINAL INPUT *****/
 // Import readline, and initialise instance
-const readline = require('readline');
 const rl = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout
 });
 
+const commands = {
+	'help': {
+		action: () => {
+			validCommands.forEach((command) => {
+				console.log(`'${command}' - ${commands[command].man}`);
+			});
+		},
+		man: 'Lists all server commands with descriptions',
+	},
+	'show connected': {
+		action: () => {},
+		man: 'Lists connected players and observers',
+	},
+	'start game': {
+		action: () => {
+			if (!game) {
+				console.log('Starting Game...');
+				game = new PlayGame(io);
+			} else {
+				console.log('A game is already in progress');
+			}
+		},
+		man: 'Starts a game. Requires two players to be connected'
+	}
+}
+
+const validCommands = Object.keys(commands);
+
 rl.on('line', (input) => {
-	if (input === 'help') {
-		console.log('Allowed Commands:');
+	if (validCommands.find((c) => c === input)) {
+		commands[input].action();
 	} else {
 		console.log('Unknown Command. Type help to see a list of commands');
 	}
 	rl.prompt();
 });
-
-
+/***** END HANDLE TERMINAL INPUT *****/
