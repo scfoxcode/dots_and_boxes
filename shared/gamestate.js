@@ -1,5 +1,22 @@
-export const Ownership = Object.freeze({'NONE': 0, 'PLAYER1': 1, 'PLAYER2': 2, 'OBSERVER': 3});
-export const Errors = Object.freeze({'ILLEGALMOVE': 'ILLEGALMOVE'});
+export const Ownership = Object.freeze({
+	NONE: 'NONE',
+	PLAYER: 'PLAYER',
+	PLAYER1: 'PLAYER1',
+	PLAYER2: 'PLAYER2',
+	OBSERVER: 'OBSERVER'
+});
+
+export const Errors = Object.freeze({
+	ILLEGALMOVE: 'ILLEGALMOVE',
+	NOT_THIS_PLAYERS_TURN: 'NOT_THIS_PLAYERS_TURN'
+});
+
+export const SocketMessages = Object.freeze({
+	SET_PLAYER: 'SET_PLAYER',
+	REQUEST_MOVE: 'REQUEST_MOVE',
+	SEND_MOVE: 'SEND_MOVE',
+	STATE_UPDATE: 'STATE_UPDATE',	
+});
 
 export function Point(x, y) {
 	this.x = Math.round(x);
@@ -150,16 +167,21 @@ Board.prototype.GetLegalMoves = function() {
 
 export function GameState() {
 	this.turn = 0;
+	this.gameOver = false;
+	this.victor = Ownership.NONE;
 	this.playersTurn = Ownership.NONE; 
-	this.illegalMove = false; // If this is ever true, game over
 	this.boardSize = 10; // Board is always square, this is the number of dots
 	this.boardState = null; // Will contain a board object
 }
 
-GameState.prototype.InitBoard = function (boardSize = 10) {
+GameState.prototype.Init = function (boardSize = 10, playersTurn = Ownership.PLAYER1) {
+	this.playersTurn = playersTurn;
 	this.boardSize = boardSize;
 	this.boardState = new Board(this.boardSize);
 	this.boardState.Init();
 }
 
-
+GameState.prototype.SetWinner = function (winner) {
+	this.gameOver = true;
+	this.victor = winner;
+}

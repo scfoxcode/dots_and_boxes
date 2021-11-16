@@ -5,18 +5,20 @@
 	<title>Game - Observer</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Author: Stephen Surtees - Dots and Boxes Observer">
-    <link rel="stylesheet" href="">
+    <link rel="stylesheet" href="style.css">
 	<script src="socket.io.min.js"></script>
+	<script src="shaders.js"></script>
+	<script src="../shared/gamestate.js"></script>
 	<script src="observer.js"></script>
 </head>
 <body>
 	<div id="connectionForm"> 
 		<label>Address:</label>
-		<input id="address" type="text" placeholder="IP Address" />
-		<button onclick="connect()">Connect</button>
+		<input id="address" type="text" placeholder="IP Address" value="127.0.0.1:5000" />
+		<button onclick="Connect()">Connect</button>
 	</div>
-	<div id="gamediv">
-
+	<div id="gameGrid">
+		<canvas id="gameCanvas" width="1000" height="1000"></canvas>
 	</div>
 </body>
 </html>

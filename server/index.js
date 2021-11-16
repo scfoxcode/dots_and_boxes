@@ -5,6 +5,7 @@ import readline from 'readline';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { PlayGame } from './servergame.js';
+import { Ownership } from '../shared/gamestate.js';
 const httpServer = createServer();
 const io = new Server(httpServer, { 
 		cors: {
@@ -12,12 +13,7 @@ const io = new Server(httpServer, {
 		}
 	}
 );
-const game = null; // Global game state object. Only 1 game may progress at a time
-const players = {
-	Player1: null,
-	Player2: null,
-};
-const observers = [];
+const game = new PlayGame(); // Global game state object. Only 1 game may progress at a time
 
 httpServer.listen(port, () => {
 	console.log(`Server listening on port ${port} ...\n`);
@@ -27,9 +23,15 @@ httpServer.listen(port, () => {
 
 // Handle new connections
 io.on('connection', (socket) => {
-	if (socket.handshake.query.type === 'Observer') {
-		console.log('Observer connected');
-		observers.push(socket);
+	switch (socket.handshake.query.type) {
+		case Ownership.PLAYER:
+			game.AddPlayer();
+		case Ownership.OBSERVER: 
+			game.AddObserver(socket);
+			break;
+		default:
+			console.log('Connection type not recognised');
+			socket.disconnect();
 	}
 });
 
@@ -57,7 +59,7 @@ const commands = {
 		action: () => {
 			if (!game) {
 				console.log('Starting Game...');
-				game = new PlayGame(io);
+				game.StartGame();
 			} else {
 				console.log('A game is already in progress');
 			}
