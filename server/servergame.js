@@ -53,7 +53,7 @@ PlayGame.prototype.AddPlayer = function(socket) {
 		console.log('Player cannot join, both spots are filled');
 		return;
 	}
-	const freeSlot = players.Player1 ? Ownership.PLAYER2: Ownership.PLAYER1;
+	const freeSlot = this.players.Player1 ? Ownership.PLAYER2: Ownership.PLAYER1;
 	this.players[freeSlot] = socket;
 	socket.emit(SocketMessages.SET_PLAYER, freeSlot);
 

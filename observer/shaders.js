@@ -15,6 +15,7 @@ const vertexShaderContent = "\
     }\
 ";
 
+// @TODO - refactor shaders to handle any grid size. Currently locked to 10 dots
 const vertexShaderContent2 = "\
     attribute vec2 a_position;\
     attribute vec4 a_colour;\
@@ -27,12 +28,6 @@ const vertexShaderContent2 = "\
 		float x = (a_position.x / magicSize) - 1.0 + 0.1;\
 		float y = -(a_position.y / magicSize) + 0.8 + 0.1;\
         gl_Position = vec4(x, y, 0, 1);\
-    }\
-";
-
-const fragmentShaderContent = "\
-    void main() {\
-        gl_FragColor = vec4(gl_FragCoord.x / 640.0, gl_FragCoord.y / 480.0, 0.0, 1.0);\
     }\
 ";
 

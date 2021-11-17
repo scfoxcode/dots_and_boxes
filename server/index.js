@@ -25,7 +25,8 @@ httpServer.listen(port, () => {
 io.on('connection', (socket) => {
 	switch (socket.handshake.query.type) {
 		case Ownership.PLAYER:
-			game.AddPlayer();
+			game.AddPlayer(socket);
+			break;
 		case Ownership.OBSERVER: 
 			game.AddObserver(socket);
 			break;
