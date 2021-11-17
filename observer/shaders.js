@@ -14,8 +14,6 @@ const vertexShaderContent = "\
         gl_Position = vec4(a_position.xy, 0, 1);\
     }\
 ";
-		// float x = (a_position.x - 1.0) / 10.0;\
-		// float y = (a_position.y - 1.0) / 10.0;\
 
 const vertexShaderContent2 = "\
     attribute vec2 a_position;\
@@ -24,8 +22,10 @@ const vertexShaderContent2 = "\
     void main() {\
 		col = a_colour;\
 		float magicSize = 5.0;\
+		float gridS = 1000.0 / 10.0;\
+		float halfG = gridS / 2.0;\
 		float x = (a_position.x / magicSize) - 1.0 + 0.1;\
-		float y = (a_position.y / magicSize) - 1.0 + 0.1;\
+		float y = -(a_position.y / magicSize) + 0.8 + 0.1;\
         gl_Position = vec4(x, y, 0, 1);\
     }\
 ";
@@ -224,11 +224,40 @@ function genFakeData(count) {
 	return data;
 }
 
+function genTestData() {
+	return [
+		{
+			x: 0,
+			y: 0,
+			horizontalLine: 1,
+			verticalLine: 2,
+		},
+		{
+			x: 8,
+			y: 8,
+			horizontalLine: 1,
+			verticalLine: 2,
+		},
+		{
+			x: 9,
+			y: 8,
+			horizontalLine: null,
+			verticalLine: 2,
+		},
+		{
+			x: 8,
+			y: 9,
+			horizontalLine: 1,
+			verticalLine: null,
+		},
+	];
+}
+
 // Initialise the line shader
 function LineShader (gl) {
 	const { lineVertexBuffer, lineColourBuffer,
 			linesLength, coloursLength
-		} = RebuildLineBuffers(gl, genFakeData(50));
+		} = RebuildLineBuffers(gl, genTestData(50));
 
 	// We should only ever call this function once!!! TODO ensure this
 	const program = LineProgram(gl);
