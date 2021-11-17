@@ -107,7 +107,7 @@ function LineProgram (gl) {
 
 
 // This is so lazy, not using index buffer. Massive duplication on the colours
-function BuildLinePoly (x, y, isHorizontal, lines, colours) {
+function BuildLinePoly (x, y, isHorizontal, owner, lines, colours) {
 	let verts = null;
 
 	const thickness = 0.05;
@@ -139,7 +139,7 @@ function BuildLinePoly (x, y, isHorizontal, lines, colours) {
 	// This is so so bad
 	// Push each channel for each of the 6 verts...
 	for (let i=0; i<6; i++) {
-		const col = [1.0, 0.0, 0.0, 1.0];
+		const col = owner === 1 ? [1.0, 0.0, 0.0, 1.0] : [0.0, 0.0, 1.0, 1.0];
 		col.forEach(c => colours.push(c));
 	}
 
@@ -154,10 +154,10 @@ function RebuildLineBuffers (gl, dots) {
 	const colours = [];
 	dots.forEach(dot => {
 		if (dot.horizontalLine && dot.horizontalLine != Ownership.NONE) {
-			BuildLinePoly(dot.x, dot.y, true, lines, colours);
+			BuildLinePoly(dot.x, dot.y, true, dot.horizontalLine, lines, colours);
 		}
 		if (dot.verticalLine && dot.verticalLine != Ownership.NONE) {
-			BuildLinePoly(dot.x, dot.y, false, lines, colours);
+			BuildLinePoly(dot.x, dot.y, false, dot.verticalLine, lines, colours);
 		}
 	});
 
@@ -209,25 +209,26 @@ function CellShader(gl) {
 	return 6;
 }
 
+function genFakeData(count) {
+	const data = [];
+	const owner1 = Math.random() > 0.5 ? 1 : 2;
+	const owner2 = Math.random() > 0.5 ? 1 : 2;
+	for (let i=0; i<count; i++) {
+		data.push({
+			x: Math.round(Math.random() * 9),
+			y: Math.round(Math.random() * 9),
+			horizontalLine: Math.random() > 0.5 ? owner1 : null,
+			verticalLine: Math.random() > 0.5 ? owner2 : null,
+		});
+	}
+	return data;
+}
+
 // Initialise the line shader
 function LineShader (gl) {
 	const { lineVertexBuffer, lineColourBuffer,
 			linesLength, coloursLength
-		} = RebuildLineBuffers(gl, [
-		// Hacking in some fake dot data
-		{
-			x: 0,
-			y: 0,
-			horizontalLine: Ownership.PLAYER1,
-			verticalLine: Ownership.PLAYER2
-		},
-		{
-			x: 2,
-			y: 3,
-			horizontalLine: null,
-			verticalLine: Ownership.PLAYER2
-		}
-	]);
+		} = RebuildLineBuffers(gl, genFakeData(50));
 
 	// We should only ever call this function once!!! TODO ensure this
 	const program = LineProgram(gl);
