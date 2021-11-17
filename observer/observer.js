@@ -1,15 +1,7 @@
-gameState = null;
-
-function Initialise () {
-	const canvas = document.getElementById('gameCanvas');
-	InitialiseShaders(canvas);
-}
-
-function Draw() {
-	const canvas = document.getElementById('gameCanvas');
-	const gl = canvas.getContext('webgl');
-	gl.drawArrays(gl.TRIANGLES, 0, 6);
-}
+// Got to love a few global variables...
+let gameState = null;
+let dotCellShader = null;
+let lineShader = null;
 
 function Connect() {
 	const address = document.getElementById('address').value;
@@ -30,8 +22,8 @@ function Connect() {
 		connectionForm.style.display = 'none';
 		gameGrid.style.display = 'grid';
 
-		Initialise();
-		Draw();
+		const canvas = document.getElementById('gameCanvas');
+		HackyDraw(canvas); // we should not be reinitialising everything on each draw call, that's insane
 	});
 
 	socket.on('UPDATE_GAME_STATE', state => {
