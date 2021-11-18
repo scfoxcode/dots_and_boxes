@@ -37,6 +37,7 @@ export function PlayGame() {
 PlayGame.prototype.Init = function (boardSize = 10, playersTurn = Ownership.PLAYER1) {
 	console.log('Initialising Game...');
 	this.state = new GameState();
+	this.started = false;
 	this.state.Init(boardSize, playersTurn);
 	this.players = {
 		Player1: null,
@@ -66,6 +67,8 @@ PlayGame.prototype.AddObserver = function (socket) {
 }
 
 PlayGame.prototype.StartGame = function () {
+	this.started = true;
+
 	// Listen for player moves 
 	const playerKeys = Object.keys(this.players);
 	playerKeys.forEach(key => {

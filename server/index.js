@@ -58,7 +58,7 @@ const commands = {
 	},
 	'start game': {
 		action: () => {
-			if (!game) {
+			if (!game.started) {
 				console.log('Starting Game...');
 				game.StartGame();
 			} else {

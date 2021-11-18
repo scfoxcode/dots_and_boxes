@@ -6,6 +6,12 @@ import { io } from 'socket.io-client';
 import { Ownership } from '../shared/gamestate.js';
 let socket = null;
 
+function ListenForServerMessages() {
+}
+
+function PickMove() {
+}
+
 /***** START HANDLE TERMINAL INPUT *****/
 const rl = readline.createInterface({
 	input: process.stdin,

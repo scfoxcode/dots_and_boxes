@@ -170,7 +170,7 @@ export function GameState() {
 	this.gameOver = false;
 	this.victor = Ownership.NONE;
 	this.playersTurn = Ownership.NONE; 
-	this.boardSize = 10; // Board is always square, this is the number of dots
+	this.boardSize = 10; // Board is always square, this is the number of dots. // Not respect by shaders yet
 	this.boardState = null; // Will contain a board object
 }
 

@@ -1,9 +1,13 @@
+import io from 'socket.io-client'
+import { HackyDraw } from './shaders'
+import * as gamestate from '../shared/gamestate'
+
 // Got to love a few global variables...
 let gameState = null;
 let dotCellShader = null;
 let lineShader = null;
 
-function Connect() {
+window.Connect = function () {
 	const address = document.getElementById('address').value;
 	console.log(`Connect to the server on: ${address}`);
 	const socket = io(
@@ -32,6 +36,6 @@ function Connect() {
 
 }
 
-function viewGamestate() {
+export function viewGamestate() {
 
 }

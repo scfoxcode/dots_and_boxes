@@ -273,7 +273,7 @@ function LineShader (gl) {
 }
 
 
-function HackyDraw(canvas) {
+export function HackyDraw(canvas) {
 	const gl = canvas.getContext('webgl');
 	if (!gl) {
 		alert('Failed to initialise WebGL!');
