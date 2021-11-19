@@ -7,6 +7,9 @@ import { Ownership } from '../shared/gamestate.js';
 let socket = null;
 
 function ListenForServerMessages() {
+    if (!socket) {
+        console.log("Socket is null, cannot listen for messages");
+    }
 }
 
 function PickMove() {
@@ -41,6 +44,7 @@ const commands = {
 					type: 'PLAYER'
 				}
 			});
+            ListenForServerMessages();
 		},
 		man: 'Connects to a game, eg. \"connect 192.168.1.4\"',
 		rg: /connect (.+)$/i,

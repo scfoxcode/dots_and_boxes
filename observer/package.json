@@ -6,7 +6,8 @@
   "scripts": {
 	"pack": "webpack --config webpack.config.js",
 	"copy": "cp ./index.html ./style.css ./build/",
-    "build": "npm run pack && npm run copy"
+    "build": "npm run pack && npm run copy",
+    "serve": "python3 -m http.server 1234 --directory build"
   },
   "dependencies": {
     "socket.io-client": "^4.3.2"
