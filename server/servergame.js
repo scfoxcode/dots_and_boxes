@@ -1,20 +1,11 @@
 import { GameState, Ownership, SocketMessages } from '../shared/gamestate.js';
-
-
-function RequestMoveFromPlayer(data) {
-	const { io, players, observers, state, move } = data;
-	const turn = state.playersTurn;
-
-	// Get the socket for this player
-	const player = players[turn]; 
-
-	// Need to add timing to all of this
-	player.emit(SocketMessages.REQUEST_MOVE, state); 
-
-	// Update all the observers
-	observers.forEach(observer => observer.emit(SocketMessages.STATE_UPDATE, state));
-
-}
+import {
+	EncodeGameState,
+	EncodeMove,
+	DecodeGameState,
+	DecodeMove,
+} from '../shared/networking.js'; 
+import uuid4 from 'uuid4';
 
 function ReceiveMoveFromPlayer(data) {
 	const { io, players, observers, state, move } = data;
@@ -45,6 +36,7 @@ PlayGame.prototype.Init = function (boardSize = 10, playersTurn = Ownership.PLAY
 	};
 	this.observers = [];
 	this.move = null;
+	this.outstandingRequests = [];
 }
 
 PlayGame.prototype.AddPlayer = function(socket) {
@@ -88,7 +80,41 @@ PlayGame.prototype.StartGame = function () {
 	});
 
 	// Sent initial move request
-	RequestMoveFromPlayer(data);
+	this.RequestMoveFromPlayer(data);
+}
+
+PlayGame.prototype.RequestMove = function() {
+	const time = new Date();
+	const expected = new Date();
+	expected.setSeconds(time.getSeconds() + 2);
+
+	const turn = this.state.playersTurn;
+
+	// Get the socket for this player
+	const player = this.players[turn]; 
+
+	// Build a request for the player, containing all the data they need
+	const request = {
+		type: SocketMessages.REQUEST_MOVE,
+		player: turn,
+		sentAt: time,
+		expectedBy: expected,
+		requestId: uuid4(),  
+		data: {
+			encodedGameState: EncodeGameState(this.state),
+			encodedLastMove: this.move ? EncodeMove(this.move) : null,
+		},
+	};
+	this.outstandingRequests.push(request);
+
+	// Send move to player
+	player.emit(request.type, request); 
+
+	const observerRequest = new request();
+	observerRequest.type = SocketMessages.STATE_UPDATE,
+
+	// Update all the observers
+	observers.forEach(observer => observer.emit(observerRequest.type, observerRequest));
 }
 
 // Need to clear things up, clear the SEND_MOVE LISTENERS

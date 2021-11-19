@@ -28,8 +28,19 @@ export function Point(x, y) {
 export function Square(x, y) {
 	this.x = Math.round(x);
 	this.y = Math.round(y);
-	this.points = []; // topLeft topRight bottomRight bottomLeft, handle to board.points
 	this.ownership = Ownership.NONE;
+}
+
+Square.prototype.GetPoints = function (points) {
+	const x = this.x;
+	const y = this.y;
+	// topLeft topRight bottomRight bottomLeft
+	return [
+		points[x][y],
+		points[x + 1][y],
+		points[x + 1][y + 1],
+		points[x][y + 1],
+	];
 }
 
 export function Move(x, y, horizontal, player = Ownership.NONE) {
@@ -44,6 +55,7 @@ export function Board(size) {
 	this.points = []; // 2D array of Point objects
 	this.squares = []; // 2D array of Square objects
 }
+
 
 Board.prototype.Init = function () {
 	// Initialise points
@@ -63,23 +75,20 @@ Board.prototype.Init = function () {
 
 	// Initialise squares, careful, we have pointers here, might have to reconstruct if sending this state via network?
 	for (let x=0; x<this.size -1; x++) {
-		this.points[x] = [];
+		this.squares[x] = [];
 		for (let y=0; y<this.size - 1; y++) {
-			const square = new Square(x, y);
-			square.points[0] = this.points[x][y];
-			square.points[1] = this.points[x + 1][y];
-			square.points[2] = this.points[x + 1][y + 1];
-			square.points[3] = this.points[x][y + 1];
+			this.squares[x][y] = new Square(x, y);
 		}
 	}
 }
 
-export function IsSquareComplete(square) {
+export function IsSquareComplete(square, points) {
 	const ownershipValues = [];
-	ownershipValues.push(square.points[0].horizontalLine);
-	ownershipValues.push(square.points[0].verticalLine);
-	ownershipValues.push(square.points[1].verticalLine);
-	ownershipValues.push(square.points[2].horizontalLine);
+	const squarePoints = square.GetPoints(points);
+	ownershipValues.push(squarePoints[0].horizontalLine);
+	ownershipValues.push(squarePoints[0].verticalLine);
+	ownershipValues.push(squarePoints[1].verticalLine);
+	ownershipValues.push(squarePoints[2].horizontalLine);
 	return !ownershipValues.find(Ownership.NONE);
 }
 
@@ -101,7 +110,7 @@ export function UpdateSquaresAfterValidMove(board, move, player) {
 	}
 	let squareWasCaptured = false;
 	squares.forEach(square => {
-		if (square.ownership === Ownership.NONE && IsSquareComplete(square)) {
+		if (square.ownership === Ownership.NONE && IsSquareComplete(square, board.points)) {
 			square.ownershipo = player;
 			squareWasCaptured = true;
 		}
