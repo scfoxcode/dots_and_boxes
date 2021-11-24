@@ -2,7 +2,7 @@ import { GameState, Move } from './gamestate.js';
 
 // Used to send the entire game state via the socket
 export function EncodeGameState(state) {
-	const encodedState = state;
+	const encodedState = {...state}; // Required else we clobber the prototypes
 
 	// Clone points without all the extra function stuff
 	const statePoints = state.boardState.points;
@@ -35,13 +35,11 @@ export function EncodeGameState(state) {
 		}
 	}
 
-	// Create boardState without all the extra function stuff
 	encodedState.boardState = {
 		size: state.boardState.size,
 		points: encodedPoints,
 		squares: encodedSquares,
 	};
-
 
 	return encodedState;
 }
@@ -57,10 +55,10 @@ export function DecodeGameState(state) {
 	for (let x=0; x<state.boardSize; x++) {
 		for (let y=0; y<state.boardSize; y++) {
 			const point = encodedPoints[x][y];
-			decodedState.board.points[x][y].x = point.x;
-			decodedState.board.points[x][y].y = point.y;
-			decodedState.board.points[x][y].horizontalLine = point.horizontalLine;
-			decodedState.board.points[x][y].verticalLine = point.verticalLine;
+			decodedState.boardState.points[x][y].x = point.x;
+			decodedState.boardState.points[x][y].y = point.y;
+			decodedState.boardState.points[x][y].horizontalLine = point.horizontalLine;
+			decodedState.boardState.points[x][y].verticalLine = point.verticalLine;
 		}
 	}
 
@@ -69,9 +67,9 @@ export function DecodeGameState(state) {
 	for (let x=0; x<state.boardSize - 1  ; x++) {
 		for (let y=0; y<state.boardSize - 1; y++) {
 			const square = encodedSquares[x][y];
-			decodedState.board.squares[x][y].x = square.x;
-			decodedState.board.squares[x][y].y = square.y;
-			decodedState.board.squares[x][y].ownership = square.ownership;
+			decodedState.boardState.squares[x][y].x = square.x;
+			decodedState.boardState.squares[x][y].y = square.y;
+			decodedState.boardState.squares[x][y].ownership = square.ownership;
 		}
 	}
 

@@ -1,0 +1,19 @@
+Made some progress:
+- Fixed bad reference error in encodingk, we were nuking the function prototypes off original state
+- Back and forth comms seem to be working. Random move is chosen and correctly submitted
+
+Bugs:
+- Player 2 is never asked for a move, we must not be toggling between somewhere
+- Player 1 played an illegal move somewhere, or the detection is wrong
+
+file:///E:/coding/projects/personal/dots_and_boxes/shared/gamestate.js:155
+                        errors.push(new Error(`${Errors.ILLEGALMOVE} - Line already played x: ${move.x} y: ${move.y} ${directionKey} for player: ${player}`));
+                                                                                                                                                   
+ReferenceError: player is not defined
+    at IsMoveLegal (file:///E:/coding/projects/personal/dots_and_boxes/shared/gamestate.js:155:127)
+
+Fix reference error in the above. Continue debugging.
+
+
+Notes:
+- Could really do with a way to test a whole game with just one command. Manually starting the clients and doing the connections each time is REALLY slow

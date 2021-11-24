@@ -41,8 +41,8 @@ PlayGame.prototype.AddPlayer = function(socket) {
 
 PlayGame.prototype.AddObserver = function (socket) {
 	console.log('Observer connected');
-	this.observers.push(socket);
-	socket.emit(SocketMessages.SET_PLAYER, {player: Ownership.OBSERVER, state: this.state});
+	this.observers.push(socket); // need to fix this request and encode state properly
+	// socket.emit(SocketMessages.SET_PLAYER, {player: Ownership.OBSERVER, state: this.state});
 }
 
 PlayGame.prototype.StartGame = function () {
@@ -58,13 +58,15 @@ PlayGame.prototype.StartGame = function () {
 		const player = this.players[key];
 		player.on(SocketMessages.SEND_MOVE, response => {
 			console.log(`Received move from player  ${key}`);
+			/*
 			if (state.playerTurn !== key) {
 				this.console.log(`Player ${key} played a move when it was not their turn`);
 				// Disqualified
 				const winner = key === Ownership.PLAYER1 ? Ownership.PLAYER2 : Ownership.PLAYER1; 
 				this.state.SetWinner(winner);
 			}
-			this.ReceiveMoveFromPlayer(response);
+			*/
+			this.ReceiveMoveFromPlayer(response); // Move the above into this function
 		});
 	});
 
@@ -82,6 +84,7 @@ PlayGame.prototype.RequestMoveFromPlayer = function() {
 	// Get the socket for this player
 	const player = this.players[turn]; 
 
+	console.log("TYPE OF 1", typeof this.state.boardState.ApplyMove);
 	// Build a request for the player, containing all the data they need
 	const request = {
 		type: SocketMessages.REQUEST_MOVE,
@@ -96,6 +99,7 @@ PlayGame.prototype.RequestMoveFromPlayer = function() {
 		},
 	};
 	this.outstandingRequests.push(request);
+	console.log("TYPE OF 2", typeof this.state.boardState.ApplyMove);
 
 	// Send move to player
     console.log('Requesting move from player');
@@ -111,26 +115,28 @@ PlayGame.prototype.RequestMoveFromPlayer = function() {
 PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
     console.log("Received move");
 	// Check the move is from the expected player. If not, mark it as illegal and game over
+	debugger;
     const encodedMove = response?.data?.encodedMove;
     if (!encodedMove) {
-        console.log("Response ewas missing encoded move");
+        console.log("Response was missing encoded move");
         // @TODO fail because move was not received. Declare other player the winner
     }
-    if (!response?.requestId || !this.outstandingRequests.find(response.requestId)) {
+    if (!response?.requestId || !this.outstandingRequests.find(r => r.requestId === response.requestId)) {
         console.log("RequestId does not match");
         // This response does not match a request. Declare other player the winner
     }
     
-    console.log("Decode the move");
+    console.log("Decode the move", this.state.boardState);
     const move = DecodeMove(encodedMove);
 
-	state.boardState.ApplyMove(move, this.state.playersTurn);
+	this.state.boardState.ApplyMove(move, this.state.playersTurn);
 
-	if (state.gamerOver) {
+	if (this.state.gamerOver) {
+		console.log("game is over");
 		// Can we send a victory message then delete our own references?
 		// We probably want a server command to reset state, rather than it happen automatically
 	} else {
-		this.RequestMoveFromPlayer(state, player);
+		this.RequestMoveFromPlayer();
 	}
 }
 

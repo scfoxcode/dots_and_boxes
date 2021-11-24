@@ -3,16 +3,41 @@ const port = process.argv[2] || 5000;
 // Create bot
 import readline from 'readline';
 import { io } from 'socket.io-client';
-import { Ownership } from '../shared/gamestate.js';
+import { SocketMessages } from '../shared/gamestate.js';
+import { DecodeGameState, EncodeMove } from '../shared/networking.js';
 let socket = null;
+
+function pickMoveAndRespond(request) {
+	if (!request?.data?.encodedGameState) {
+		console.log('Server failed to send game state');
+	}
+	const gamestate = DecodeGameState(request.data.encodedGameState);
+	const legalMoves = gamestate.boardState.GetLegalMoves();
+	const moveIndex = Math.floor(Math.random() * legalMoves.length);
+	const chosenMove = legalMoves[moveIndex];
+	const response = {
+		type: SocketMessages.SEND_MOVE,
+		player: request.turn,
+		requestId: request.requestId, 
+		data: {
+			encodedMove: EncodeMove(chosenMove),
+		},
+	};
+	socket.emit(response.type, response);
+	console.log(`Replied to server with legal move num ${moveIndex}`);
+}
 
 function ListenForServerMessages() {
     if (!socket) {
-        console.log("Socket is null, cannot listen for messages");
+        console.log('Socket is null, cannot listen for messages');
     }
-}
-
-function PickMove() {
+	socket.on(SocketMessages.REQUEST_MOVE, request => { 
+		console.log('Server requested a move', request);
+		pickMoveAndRespond(request);
+	});
+	socket.on(SocketMessages.STATE_UPDATE, data => { 
+		console.log('State update received. Doing nothing, not implemented', data);
+	});
 }
 
 /***** START HANDLE TERMINAL INPUT *****/

@@ -82,6 +82,25 @@ Board.prototype.Init = function () {
 	}
 }
 
+Board.prototype.ApplyMove = function(move, player) {
+	return ApplyMoveToBoard(this, move, player); 
+}
+
+Board.prototype.GetLegalMoves = function() {
+	const legalMoves = [];
+	for (let x=0; x<this.size; x++) {
+		for (let y=0; y<this.size; y++) {
+			if (this.points[x][y].horizontalLine === Ownership.NONE) {
+				legalMoves.push(new Move(x, y, true, Ownership.NONE));
+			}
+			if (this.points[x][y].verticalLine === Ownership.NONE) {
+				legalMoves.push(new Move(x, y, false, Ownership.NONE));
+			}
+		}
+	}
+	return legalMoves;
+}
+
 export function IsSquareComplete(square, points) {
 	const ownershipValues = [];
 	const squarePoints = square.GetPoints(points);
@@ -89,7 +108,7 @@ export function IsSquareComplete(square, points) {
 	ownershipValues.push(squarePoints[0].verticalLine);
 	ownershipValues.push(squarePoints[1].verticalLine);
 	ownershipValues.push(squarePoints[2].horizontalLine);
-	return !ownershipValues.find(Ownership.NONE);
+	return !ownershipValues.find(own => own === Ownership.NONE);
 }
 
 // Returns true if a square was captured
@@ -155,24 +174,6 @@ export function ApplyMoveToBoard(board, move, player) {
 	}
 }
 
-Board.prototype.ApplyMove = function(move, player) {
-	return ApplyMoveToBoard(this, move, player); 
-}
-
-Board.prototype.GetLegalMoves = function() {
-	const legalMoves = [];
-	for (let x=0; x<this.size; x++) {
-		for (let y=0; y<this.size; y++) {
-			if (this.points[x][y].horizontalLine === Ownership.NONE) {
-				legalMoves.push(new Move(x, y, true, Ownership.NONE));
-			}
-			if (this.points[x][y].verticalLine === Ownership.NONE) {
-				legalMoves.push(new Move(x, y, false, Ownership.NONE));
-			}
-		}
-	}
-	return legalMoves;
-}
 
 export function GameState() {
 	this.turn = 0;
