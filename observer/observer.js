@@ -1,6 +1,9 @@
 import io from 'socket.io-client'
-import { HackyDraw } from './shaders'
+import { HackyDraw, RenderGame } from './shaders'
 import * as gamestate from '../shared/gamestate'
+import {
+	DecodeGameState,
+} from '../shared/networking.js'; 
 
 // Got to love a few global variables...
 let gameState = null;
@@ -17,7 +20,7 @@ window.Connect = function () {
 		}
 	});
 
-	socket.on('SET_PLAYER', data => { // Toggle view when we connect 
+	socket.on(gamestate.SocketMessages.SET_PLAYER, data => { // Toggle view when we connect 
 		const { player, state } = data;
 		console.log(`Player Set: ${player}`);
 
@@ -30,12 +33,10 @@ window.Connect = function () {
 		HackyDraw(canvas); // we should not be reinitialising everything on each draw call, that's insane
 	});
 
-	socket.on('UPDATE_GAME_STATE', state => {
-		console.log('Game state received');
+	socket.on(gamestate.SocketMessages.STATE_UPDATE, msg => {
+		console.log('Game state received', msg);
+		const canvas = document.getElementById('gameCanvas');
+		const decodedState = DecodeGameState(msg.data.encodedGameState);
+		RenderGame(canvas, decodedState);
 	});
-
-}
-
-export function viewGamestate() {
-
 }

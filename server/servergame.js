@@ -42,7 +42,7 @@ PlayGame.prototype.AddPlayer = function(socket) {
 PlayGame.prototype.AddObserver = function (socket) {
 	console.log('Observer connected');
 	this.observers.push(socket); // need to fix this request and encode state properly
-	// socket.emit(SocketMessages.SET_PLAYER, {player: Ownership.OBSERVER, state: this.state});
+	socket.emit(SocketMessages.SET_PLAYER, {player: Ownership.OBSERVER, state: this.state});
 }
 
 PlayGame.prototype.StartGame = function () {
@@ -84,7 +84,6 @@ PlayGame.prototype.RequestMoveFromPlayer = function() {
 	// Get the socket for this player
 	const player = this.players[turn]; 
 
-	console.log("TYPE OF 1", typeof this.state.boardState.ApplyMove);
 	// Build a request for the player, containing all the data they need
 	const request = {
 		type: SocketMessages.REQUEST_MOVE,
@@ -99,7 +98,6 @@ PlayGame.prototype.RequestMoveFromPlayer = function() {
 		},
 	};
 	this.outstandingRequests.push(request);
-	console.log("TYPE OF 2", typeof this.state.boardState.ApplyMove);
 
 	// Send move to player
     console.log('Requesting move from player');
@@ -115,7 +113,6 @@ PlayGame.prototype.RequestMoveFromPlayer = function() {
 PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
     console.log("Received move");
 	// Check the move is from the expected player. If not, mark it as illegal and game over
-	debugger;
     const encodedMove = response?.data?.encodedMove;
     if (!encodedMove) {
         console.log("Response was missing encoded move");
@@ -126,16 +123,27 @@ PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
         // This response does not match a request. Declare other player the winner
     }
     
-    console.log("Decode the move", this.state.boardState);
+    console.log("Decode the move");
     const move = DecodeMove(encodedMove);
 
-	this.state.boardState.ApplyMove(move, this.state.playersTurn);
+	const squareWasCaptured = this.state.boardState.ApplyMove(move, this.state.playersTurn);
 
-	if (this.state.gamerOver) {
+	// Check for legal moves. If none, game over
+	const legalMoves = this.state.boardState.GetLegalMoves();
+	console.log("legal moves left", legalMoves.length);
+	if (legalMoves.length <= 0) {
+		this.state.gameOver = true;
+	}
+
+
+	if (this.state.gameOver) {
 		console.log("game is over");
 		// Can we send a victory message then delete our own references?
 		// We probably want a server command to reset state, rather than it happen automatically
 	} else {
+		if (!squareWasCaptured) {
+			this.state.playersTurn = this.state.playersTurn === Ownership.PLAYER1 ? Ownership.PLAYER2 : Ownership.PLAYER1;
+		}
 		this.RequestMoveFromPlayer();
 	}
 }

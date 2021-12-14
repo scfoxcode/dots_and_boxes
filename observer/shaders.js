@@ -134,7 +134,7 @@ function BuildLinePoly (x, y, isHorizontal, owner, lines, colours) {
 	// This is so so bad
 	// Push each channel for each of the 6 verts...
 	for (let i=0; i<6; i++) {
-		const col = owner === 1 ? [1.0, 0.0, 0.0, 1.0] : [0.0, 0.0, 1.0, 1.0];
+		const col = owner == Ownership.PLAYER1 ? [1.0, 0.0, 0.0, 1.0] : [0.0, 0.0, 1.0, 1.0];
 		col.forEach(c => colours.push(c));
 	}
 
@@ -173,7 +173,7 @@ function RebuildLineBuffers (gl, dots) {
 }
 
 // This is the cross and cell shader
-function CellShader(gl) {
+function CellShader(gl, size) {
 	gl.clearColor(0.5, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -249,10 +249,10 @@ function genTestData() {
 }
 
 // Initialise the line shader
-function LineShader (gl) {
+function LineShader (gl, dots=[]) {
 	const { lineVertexBuffer, lineColourBuffer,
 			linesLength, coloursLength
-		} = RebuildLineBuffers(gl, genTestData(50));
+		} = RebuildLineBuffers(gl, dots);
 
 	// We should only ever call this function once!!! TODO ensure this
 	const program = LineProgram(gl);
@@ -268,7 +268,6 @@ function LineShader (gl) {
     const colour = gl.getAttribLocation(program, "a_colour");
     gl.enableVertexAttribArray(colour);
     gl.vertexAttribPointer(colour, 4, gl.FLOAT, false, 0, 0);
-	console.log("vColourCount", coloursLength / 4);
 	return linesLength / 2;
 }
 
@@ -283,5 +282,20 @@ export function HackyDraw(canvas) {
 	gl.drawArrays(gl.TRIANGLES, 0, vCellCount);
 	const vLineCount = LineShader(gl);
 	console.log("vLineCount", vLineCount);
+	gl.drawArrays(gl.TRIANGLES, 0, vLineCount);
+}
+
+export function RenderGame(canvas, state) {
+	const size = state.boardSize;
+	const dots = state.boardState.points;
+
+	const gl = canvas.getContext('webgl');
+	if (!gl) {
+		alert('Failed to initialise WebGL!');
+		return;
+	}
+	const vCellCount = CellShader(gl, size);
+	gl.drawArrays(gl.TRIANGLES, 0, vCellCount);
+	const vLineCount = LineShader(gl, dots.flat());
 	gl.drawArrays(gl.TRIANGLES, 0, vLineCount);
 }

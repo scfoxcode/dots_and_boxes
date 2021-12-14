@@ -88,5 +88,5 @@ export function EncodeMove(move) {
 
 // Used to recieve a move via the socket
 export function DecodeMove(move) {
-	return new Move(move.x, move.x, move.isHorizontal, move.madeBy);
+	return new Move(move.x, move.y, move.isHorizontal, move.madeBy);
 }

@@ -1,4 +1,5 @@
 const port = process.argv[2] || 5000;
+const DEV = process.argv[3] && process.argv[3] === 'dev';
 
 // Create bot
 import readline from 'readline';
@@ -15,6 +16,7 @@ function pickMoveAndRespond(request) {
 	const legalMoves = gamestate.boardState.GetLegalMoves();
 	const moveIndex = Math.floor(Math.random() * legalMoves.length);
 	const chosenMove = legalMoves[moveIndex];
+	console.log("chosen move", chosenMove.x, ' , ', chosenMove.y);
 	const response = {
 		type: SocketMessages.SEND_MOVE,
 		player: request.turn,
@@ -61,7 +63,7 @@ const commands = {
 	},
 	'connect': { // need a regex solution here to get address from the command
 		action: (data) => {
-			const address = data[1] || '127.0.0.1';
+			const address = data?.[1] || '127.0.0.1';
 			const wsAddress = `ws://${address}:${port}`;
 			console.log(`Socket connecting on address: ${wsAddress}`);
 			socket = io(wsAddress, {
@@ -90,3 +92,9 @@ rl.on('line', (input) => {
 	rl.prompt();
 });
 /***** END HANDLE TERMINAL INPUT *****/
+
+// Handle dev mode for quick action
+if (DEV) {
+	console.log('ALERT, DEV MODE ACTIVE!');
+	commands.connect.action();
+}

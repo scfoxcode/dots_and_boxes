@@ -150,9 +150,9 @@ export function IsMoveLegal(board, move, errors) {
 	}
 	const point = board.points[move.x][move.y];
 	const directionKey = move.isHorizontal ? 'horizontalLine' : 'verticalLine';
-	if (point[directionKey] !== Ownership.NONE) {
+	if (point[directionKey] && point[directionKey] !== Ownership.NONE) {
 		if (Array.isArray(errors)) {
-			errors.push(new Error(`${Errors.ILLEGALMOVE} - Line already played x: ${move.x} y: ${move.y} ${directionKey} for player: ${player}`));
+			errors.push(new Error(`${Errors.ILLEGALMOVE} - Line already played x: ${move.x} y: ${move.y} ${directionKey} for player: ${move.madeBy}`));
 		}
 		return false;
 	}
@@ -180,7 +180,7 @@ export function GameState() {
 	this.gameOver = false;
 	this.victor = Ownership.NONE;
 	this.playersTurn = Ownership.NONE; 
-	this.boardSize = 10; // Board is always square, this is the number of dots. // Not respect by shaders yet
+	this.boardSize = 10; // Board is always square, this is the number of dots. // Not respected by shaders yet
 	this.boardState = null; // Will contain a board object
 }
 
