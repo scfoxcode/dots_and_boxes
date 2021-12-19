@@ -72,6 +72,7 @@ PlayGame.prototype.StartGame = function () {
 
 	// Sent initial move request
 	this.RequestMoveFromPlayer();
+	this.UpdateObserversGameState();
 }
 
 PlayGame.prototype.RequestMoveFromPlayer = function() {
@@ -102,12 +103,21 @@ PlayGame.prototype.RequestMoveFromPlayer = function() {
 	// Send move to player
     console.log('Requesting move from player');
 	player.emit(request.type, request); 
+}
 
-    const observerRequest = {...request};
-	observerRequest.type = SocketMessages.STATE_UPDATE,
+PlayGame.prototype.UpdateObserversGameState = function() {
+	const request = {
+		type: SocketMessages.STATE_UPDATE,
+		player: this.state.playersTurn,
+		sentAt: new Date,
+		data: {
+			encodedGameState: EncodeGameState(this.state),
+			encodedLastMove: this.move ? EncodeMove(this.move) : null,
+		},
+	};
 
 	// Update all the observers
-	this.observers.forEach(observer => observer.emit(observerRequest.type, observerRequest));
+	this.observers.forEach(observer => observer.emit(request.type, request));
 }
 
 PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
@@ -149,7 +159,8 @@ PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
 		}
 		this.RequestMoveFromPlayer();
 	}
-	}, 500);
+	this.UpdateObserversGameState();
+	}, 1250);
 }
 
 // Need to clear things up, clear the SEND_MOVE LISTENERS

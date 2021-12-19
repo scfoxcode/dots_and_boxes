@@ -1,22 +1,28 @@
 import { Ownership } from '../shared/gamestate'
 
 const Colours = {
-	ALPHA: [0.0, 1.0, 0.0, 1.0],
+	ALPHA: [0.0, 0.0, 0.0, 0.0],
 	BLACK: [0.0, 0.0, 0.0, 1.0],
 	PLAYER1: [1.0, 0.0, 0.0, 1.0],
 	PLAYER2: [0.0, 0.0, 1.0, 1.0],
 };
 
-const vertexShaderContent = "\
+const dotsAndCellsVertexShaderCode = "\
     attribute vec2 a_position;\
     void main() {\
         gl_Position = vec4(a_position.xy, 0, 1);\
     }\
 ";
 
-const fragmentDotsAndCells = "\
+const dotsAndCellsFragmentShaderCode = "\
 	precision mediump float;\
+	uniform sampler2D cell_lookup;\
     void main() {\
+		float x = (gl_FragCoord.x / 1000.0);\
+		float y = (gl_FragCoord.y / 1000.0);\
+		vec4 cellColor = texture2D(cell_lookup, vec2(x, y));\
+		gl_FragColor = cellColor;\
+		\
 		float gridS = 1000.0 / 10.0;\
 		float halfG = gridS / 2.0;\
 		float a = 5.0;\
@@ -27,10 +33,11 @@ const fragmentDotsAndCells = "\
 			((dx < b || dx > (gridS - b)) && (dy < a || dy > (gridS - a)))){\
 			gl_FragColor = vec4(0.7, 0.7, 0.7, 1.0);\
 		} else {\
-			gl_FragColor = vec4(0.97, 0.97, 0.97, 1.0);\
+			gl_FragColor = vec4(x, y, 0.0, 1.0);\
 		}\
     }\
 ";
+			// gl_FragColor = vec4(0.97, 0.97, 0.97, 1.0);\
 
 // @TODO - refactor shaders to handle any grid size. Currently locked to 10 dots
 const linesVertexShaderCode = "\
@@ -57,7 +64,8 @@ const linesFragmentShaderCode = "\
 ";
 
 /**
- * gl - The open gl context, we want to cache compiled shader programs here for performance
+ * Function to select the requested shader, will compile and cache only if needed
+ * gl - The open gl context for this shader, the cache will be added to this
  * name - Name we are giving to this shader program
  * fBuildProgram - Function that takes the gl context and returns the shader program
  */
@@ -71,14 +79,14 @@ function UseShaders(gl, name, fBuildProgram) {
 	return gl.shaderMap[name]();
 }
 
-function DotsAndCellsShaderBuilder(gl) {
+function BuildShader(gl, vert, frag) {
     // Compile and attach shaders
     const vShader = gl.createShader(gl.VERTEX_SHADER);
-    gl.shaderSource(vShader, vertexShaderContent);
+    gl.shaderSource(vShader, vert);
     gl.compileShader(vShader);
 
     const fShader = gl.createShader(gl.FRAGMENT_SHADER)
-    gl.shaderSource(fShader, fragmentDotsAndCells);
+    gl.shaderSource(fShader, frag);
     gl.compileShader(fShader);
 	var error_log = gl.getShaderInfoLog(fShader);
 	console.log(error_log);
@@ -93,29 +101,55 @@ function DotsAndCellsShaderBuilder(gl) {
 	}
 }
 
+function DotsAndCellsShaderBuilder(gl) {
+	return BuildShader(gl, dotsAndCellsVertexShaderCode, dotsAndCellsFragmentShaderCode);
+}
 
 function LineProgramShaderBuilder(gl) {
-    // Compile and attach shaders
-    const vShader = gl.createShader(gl.VERTEX_SHADER);
-    gl.shaderSource(vShader, linesVertexShaderCode);
-    gl.compileShader(vShader);
-	var error_log = gl.getShaderInfoLog(vShader);
-	console.log(error_log);
+	return BuildShader(gl, linesVertexShaderCode, linesFragmentShaderCode);
+}
 
-    const fShader = gl.createShader(gl.FRAGMENT_SHADER)
-    gl.shaderSource(fShader, linesFragmentShaderCode);
-    gl.compileShader(fShader);
-	var error_log2 = gl.getShaderInfoLog(fShader);
-	console.log(error_log2);
+function BuildSquareOwnershipTexture(gl, boardSize, squares) {
+	const texture = gl.createTexture();
+	gl.bindTexture(gl.TEXTURE_2D, texture);
 
-	return () => {
-		const program = gl.createProgram();
-		gl.attachShader(program, vShader);
-		gl.attachShader(program, fShader);
-		gl.linkProgram(program);
-    	gl.useProgram(program);
-		return program;
+	var floatTextures = gl.getExtension('OES_texture_float');
+	if (!floatTextures) {
+		alert('no floating point texture support');
+		return;
 	}
+
+	const colours = squares.map(square => {
+		if (square.ownership === Ownership.PLAYER1) {
+			return Colours.PLAYER1;
+		}
+		if (square.ownership === Ownership.PLAYER2) {
+			return Colours.PLAYER2;
+		}
+		return Colours.ALPHA; 
+	});;
+	// const pixels = new Uint8Array(colours.flat().map(c => c *= 256.0));
+	let someShitPixels = [];
+	for (let i=0; i<16*16; i++) {
+		someShitPixels.push(255);
+		someShitPixels.push(0);
+		someShitPixels.push(255);
+		someShitPixels.push(255);
+	}
+	const pixels = new Uint8Array(someShitPixels);
+	gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+	gl.texImage2D(
+		gl.TEXTURE_2D,
+		0,
+		gl.RGBA,
+		16, //boardSize - 1,
+		16, //boardSize - 1,
+		0,
+		gl.RGBA,
+		gl.UNSIGNED_BYTE,
+		pixels);
+
+	return texture;
 }
 
 function BuildLinePolygon(dot, isHorizontal, owner, bufferLists) {
@@ -214,7 +248,7 @@ function RebuildLineBuffers(gl, dots) {
 }
 
 // This is the cross and cell shader
-function CellShader(gl, size) {
+function DrawGridAndCells(gl, size, squares) {
 	gl.clearColor(0.5, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -234,14 +268,27 @@ function CellShader(gl, size) {
         gl.STATIC_DRAW
     );
 
+	// Build texture
+	const texture = BuildSquareOwnershipTexture(gl, size, squares);
+
 	const program = UseShaders(gl, 'Dots_And_Cells', DotsAndCellsShaderBuilder);
     gl.useProgram(program);
 
     // Pass values to shaders
-    const position = gl.getAttribLocation(program, "a_position");
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufferMesh);
+    const position = gl.getAttribLocation(program, 'a_position');
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
-	return 6;
+
+	const cells = gl.getUniformLocation(program, 'cell_lookup');
+	gl.activeTexture(gl.TEXTURE0);
+	gl.bindTexture(gl.TEXTURE_2D, texture);
+	gl.uniform1i(cells, 0);
+
+	gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+	gl.disableVertexAttribArray(position);
+	gl.deleteBuffer(bufferMesh);
 }
 
 function DrawLines(gl, dots=[]) {
@@ -265,7 +312,6 @@ function DrawLines(gl, dots=[]) {
     gl.vertexAttribPointer(colour, 4, gl.FLOAT, false, 0, 0);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lineVertexIndexBuffer);
-	console.log("GL VERT COUNT: ", glVertCount);
 	gl.drawElements(gl.TRIANGLES, glVertCount, gl.UNSIGNED_SHORT, lineVertexIndexBuffer);
 
 	gl.disableVertexAttribArray(position);
@@ -285,9 +331,7 @@ export function RenderGame(canvas, state) {
 		alert('Failed to initialise WebGL!');
 		return;
 	}
-	const vCellCount = CellShader(gl, size);
-	gl.drawArrays(gl.TRIANGLES, 0, vCellCount);
-	// DrawLines(gl, genTestData() /*dots.flat()*/);
+	DrawGridAndCells(gl, size, squares);
 	DrawLines(gl, dots.flat());
 }
 
