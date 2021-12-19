@@ -111,6 +111,7 @@ PlayGame.prototype.RequestMoveFromPlayer = function() {
 }
 
 PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
+	setTimeout(() => { // @TODO - remove timout. add proper timing. This was just for debugging
     console.log("Received move");
 	// Check the move is from the expected player. If not, mark it as illegal and game over
     const encodedMove = response?.data?.encodedMove;
@@ -125,6 +126,8 @@ PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
     
     console.log("Decode the move");
     const move = DecodeMove(encodedMove);
+	this.move = move;
+	this.move.madeBy = this.state.playersTurn;
 
 	const squareWasCaptured = this.state.boardState.ApplyMove(move, this.state.playersTurn);
 
@@ -146,6 +149,7 @@ PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
 		}
 		this.RequestMoveFromPlayer();
 	}
+	}, 500);
 }
 
 // Need to clear things up, clear the SEND_MOVE LISTENERS
