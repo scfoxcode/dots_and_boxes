@@ -24,8 +24,10 @@ const cellsVertexShaderCode = "\
 const cellsFragmentShaderCode = "\
 	precision mediump float;\
 	varying vec4 col;\
+	uniform float u_gridsize;\
+	uniform float u_resolution;\
 	void main() {\
-		float gridS = 1000.0 / 10.0;\
+		float gridS = u_resolution / u_gridsize;\
 		float halfG = gridS / 2.0;\
 		float a = 5.0;\
 		float b = 1.0;\
@@ -45,13 +47,15 @@ const linesVertexShaderCode = "\
     attribute vec2 a_position;\
     attribute vec4 a_colour;\
 	varying vec4 col;\
+	uniform float u_gridsize;\
+	uniform float u_resolution;\
     void main() {\
 		col = a_colour;\
-		float magicSize = 5.0;\
-		float gridS = 1000.0 / 10.0;\
-		float halfG = gridS / 2.0;\
-		float x = (a_position.x / magicSize) - 1.0 + 0.1;\
-		float y = -(a_position.y / magicSize) + 0.8 + 0.1;\
+		float gridS = u_resolution / u_gridsize;\
+		float halfG = u_gridsize / 2.0;\
+		float cell = 1.0 / u_gridsize;\
+		float x = (a_position.x / halfG) - 1.0 + cell;\
+		float y = -(a_position.y / halfG) + 1.0 - cell;\
         gl_Position = vec4(x, y, 0, 1);\
     }\
 ";
@@ -173,9 +177,9 @@ function BuildLinePolygon(dot, isHorizontal, owner, bufferLists, lastMove) {
 	}
 }
 
-function BuildCellPolygon(square, bufferLists) {
+function BuildCellPolygon(square, bufferLists, gridSize) {
 	const { ownership } = square;
-	const space = 2.0 / 10.0; // replace 10 with num dots
+	const space = 2.0 / gridSize;
 	const half= space * 0.5;
 	const x = square.x * space + space -1.0;
 	const y = -1.0* (square.y * space + space -1.0); // Flip to match lines
@@ -245,24 +249,24 @@ function BuildBuffersFromLists(gl, bufferLists) {
 	return buffers;
 }
 
-function DrawCells(gl, boardSize, squares) {
+function DrawCells(gl, gridSize, squares) {
 	// Clear canvas 
 	gl.clearColor(...Colours.BOARDGREY);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
 	// Build buffers
 	const bufferLists = BuildBufferLists();
-	squares.forEach(square => BuildCellPolygon(square, bufferLists)); 
+	squares.forEach(square => BuildCellPolygon(square, bufferLists, gridSize)); 
 	const buffers = BuildBuffersFromLists(gl, bufferLists);
 
 	// Draw cells
 	const program = UseShaders(gl, 'Cells', CellsShaderBuilder);
 	const glVertCount = bufferLists.vertexIndices.length;
 	console.log("Drawing squares verts", glVertCount, squares.length);
-	DrawUsingBuffersAndCleanup(gl, buffers, program, glVertCount);
+	DrawUsingBuffersAndCleanup(gl, buffers, program, glVertCount, gridSize);
 }
 
-function DrawLines(gl, dots=[], lastMove) {
+function DrawLines(gl, gridSize, dots=[], lastMove) {
 	// Build buffers
 	const bufferLists = BuildBufferLists();
 	dots.forEach(dot => {
@@ -278,23 +282,30 @@ function DrawLines(gl, dots=[], lastMove) {
 	// Draw lines
 	const program = UseShaders(gl, 'Lines', LineProgramShaderBuilder);
 	const glVertCount = bufferLists.vertexIndices.length;
-	DrawUsingBuffersAndCleanup(gl, buffers, program, glVertCount);
+	DrawUsingBuffersAndCleanup(gl, buffers, program, glVertCount, gridSize);
 }
 
-function DrawUsingBuffersAndCleanup(gl, buffers, program, glVertCount) {
+function DrawUsingBuffersAndCleanup(gl, buffers, program, glVertCount, gridSize) {
 	const {
 		vertexBuffer,
 		vertexIndexBuffer,
 		colourBuffer,
 	} = buffers;
 
+	// Setup uniforms
+	const u_gridsize = gl.getUniformLocation(program, 'u_gridsize');
+	gl.uniform1f(u_gridsize, gridSize);
+	const u_resolution = gl.getUniformLocation(program, 'u_resolution');
+	gl.uniform1f(u_resolution, 1000);
+
+	// Setup buffers and attributes
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-    const position = gl.getAttribLocation(program, "a_position");
+    const position = gl.getAttribLocation(program, 'a_position');
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
 
 	gl.bindBuffer(gl.ARRAY_BUFFER, colourBuffer);
-    const colour = gl.getAttribLocation(program, "a_colour");
+    const colour = gl.getAttribLocation(program, 'a_colour');
     gl.enableVertexAttribArray(colour);
     gl.vertexAttribPointer(colour, 4, gl.FLOAT, false, 0, 0);
 
@@ -319,5 +330,5 @@ export function RenderGame(canvas, state, lastMove) {
 		return;
 	}
 	DrawCells(gl, size, squares.flat());
-	DrawLines(gl, dots.flat(), lastMove);
+	DrawLines(gl, size, dots.flat(), lastMove);
 }

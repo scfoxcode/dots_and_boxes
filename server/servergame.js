@@ -11,7 +11,7 @@ export function PlayGame() {
 	this.Init();
 }
 
-PlayGame.prototype.Init = function (boardSize = 10, playersTurn = Ownership.PLAYER1) {
+PlayGame.prototype.Init = function (boardSize = 8, playersTurn = Ownership.PLAYER1) {
 	console.log('Initialising Game...');
 	this.state = new GameState();
 	this.started = false;
