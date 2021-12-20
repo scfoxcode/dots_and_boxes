@@ -3,6 +3,7 @@ import { Ownership } from '../shared/gamestate'
 const Colours = {
 	ALPHA: [0.0, 0.0, 0.0, 0.0],
 	BLACK: [0.0, 0.0, 0.0, 1.0],
+	LINE: [0.5, 0.5, 0.5, 1.0],
 	PLAYER1: [1.0, 0.0, 0.0, 0.5],
 	PLAYER2: [0.0, 0.0, 1.0, 0.5],
 	BOARDGREY: [0.97, 0.97, 0.97, 1.0]
@@ -308,48 +309,4 @@ export function RenderGame(canvas, state) {
 	}
 	DrawCells(gl, size, squares.flat());
 	DrawLines(gl, dots.flat());
-}
-
-function genFakeData(count) {
-	const data = [];
-	const owner1 = Math.random() > 0.5 ? 1 : 2;
-	const owner2 = Math.random() > 0.5 ? 1 : 2;
-	for (let i=0; i<count; i++) {
-		data.push({
-			x: Math.round(Math.random() * 9),
-			y: Math.round(Math.random() * 9),
-			horizontalLine: Math.random() > 0.5 ? owner1 : null,
-			verticalLine: Math.random() > 0.5 ? owner2 : null,
-		});
-	}
-	return data;
-}
-
-function genTestData() {
-	return [
-		{
-			x: 0,
-			y: 0,
-			horizontalLine: Ownership.PLAYER1,
-			verticalLine: Ownership.PLAYER2,
-		},
-		{
-			x: 8,
-			y: 8,
-			horizontalLine: Ownership.PLAYER1,
-			verticalLine: Ownership.PLAYER2,
-		},
-		{
-			x: 9,
-			y: 8,
-			horizontalLine: null,
-			verticalLine: Ownership.PLAYER2,
-		},
-		{
-			x: 8,
-			y: 9,
-			horizontalLine: Ownership.PLAYER1,
-			verticalLine: null,
-		},
-	];
 }
