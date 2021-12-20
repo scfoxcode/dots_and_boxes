@@ -163,7 +163,7 @@ PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
 		this.RequestMoveFromPlayer();
 	}
 	this.UpdateObserversGameState();
-	}, 250);
+	}, 100);
 }
 
 // Need to clear things up, clear the SEND_MOVE LISTENERS

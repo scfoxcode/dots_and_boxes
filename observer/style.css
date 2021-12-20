@@ -11,7 +11,7 @@ body {
 	height: 96vh;
 	margin-top: 2vh;
 	display: none;
-	grid-template-rows: 20% minmax(0, 1fr);
+	grid-template-rows: 10% minmax(0, 1fr) 10%;
 	grid-template-columns: 20% minmax(0, 1fr) 20%;
 	grid-gap: 1rem;
 	/* background-color: rgba(0.97, 0.97, 0.97, 0.1); */

@@ -3,6 +3,7 @@ import { RenderGame } from './shaders'
 import * as gamestate from '../shared/gamestate'
 import {
 	DecodeGameState,
+	DecodeMove,
 } from '../shared/networking.js'; 
 
 window.Connect = function () {
@@ -34,6 +35,10 @@ window.Connect = function () {
 		console.log('Last move', msg.data.encodedLastMove);
 		const canvas = document.getElementById('gameCanvas');
 		const decodedState = DecodeGameState(msg.data.encodedGameState);
-		RenderGame(canvas, decodedState);
+		let decodedMove = null;
+		if (msg.data.encodedLastMove) {
+			decodedMove = DecodeMove(msg.data.encodedLastMove);
+		}
+		RenderGame(canvas, decodedState, decodedMove);
 	});
 }

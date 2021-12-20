@@ -3,9 +3,11 @@ import { Ownership } from '../shared/gamestate'
 const Colours = {
 	ALPHA: [0.0, 0.0, 0.0, 0.0],
 	BLACK: [0.0, 0.0, 0.0, 1.0],
-	LINE: [0.5, 0.5, 0.5, 1.0],
-	PLAYER1: [1.0, 0.0, 0.0, 0.5],
-	PLAYER2: [0.0, 0.0, 1.0, 0.5],
+	LINE: [0.0, 0.0, 0.0, 1.0],
+	PLAYER1: [0.96, 0.17, 0.17, 1.0],
+	PLAYER2: [0.17, 0.73, 0.96, 1.0],
+	PLAYER1LINE: [1.0, 0.6, 0.6, 1.0],
+	PLAYER2LINE: [0.6, 0.6, 1.0, 1.0],
 	BOARDGREY: [0.97, 0.97, 0.97, 1.0]
 };
 
@@ -44,7 +46,7 @@ const linesVertexShaderCode = "\
     attribute vec4 a_colour;\
 	varying vec4 col;\
     void main() {\
-		col = vec4(a_colour.xyz, 0.9);\
+		col = a_colour;\
 		float magicSize = 5.0;\
 		float gridS = 1000.0 / 10.0;\
 		float halfG = gridS / 2.0;\
@@ -125,9 +127,15 @@ function BuildIndicesForPoly(vertexOffset) {
 	];
 }
 
-function BuildLinePolygon(dot, isHorizontal, owner, bufferLists) {
+function BuildLinePolygon(dot, isHorizontal, owner, bufferLists, lastMove) {
 	const { x, y } = dot;
-	const thickness = 0.05;
+	const isLastMove =
+		lastMove &&
+		lastMove.x === x &&
+		lastMove.y === y &&
+		lastMove.isHorizontal === isHorizontal;
+
+	const thickness = isLastMove ? 0.09 : 0.03;
 
 	let vertices = null;
 	const vertexOffset = bufferLists.vertices.length / 2; // Remember, 2 floats per vertex
@@ -156,7 +164,10 @@ function BuildLinePolygon(dot, isHorizontal, owner, bufferLists) {
 	vertices.forEach(vert => bufferLists.vertices.push(vert)); 
 	vertexIndices.forEach(index => bufferLists.vertexIndices.push(index)); 
 
-	const col = owner === Ownership.PLAYER1 ? Colours.PLAYER1 : Colours.PLAYER2;
+	let col = Colours.LINE;
+	if (isLastMove) {
+		col = owner === Ownership.PLAYER1 ? Colours.PLAYER1LINE : Colours.PLAYER2LINE;
+	}
 	for (let i=0; i<4; i++) {
 		col.forEach(c => bufferLists.colours.push(c));
 	}
@@ -236,7 +247,7 @@ function BuildBuffersFromLists(gl, bufferLists) {
 
 function DrawCells(gl, boardSize, squares) {
 	// Clear canvas 
-	gl.clearColor(1.0, 1.0, 1.0, 1.0);
+	gl.clearColor(...Colours.BOARDGREY);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
 	// Build buffers
@@ -251,15 +262,15 @@ function DrawCells(gl, boardSize, squares) {
 	DrawUsingBuffersAndCleanup(gl, buffers, program, glVertCount);
 }
 
-function DrawLines(gl, dots=[]) {
+function DrawLines(gl, dots=[], lastMove) {
 	// Build buffers
 	const bufferLists = BuildBufferLists();
 	dots.forEach(dot => {
 		if (dot.horizontalLine && dot.horizontalLine != Ownership.NONE) {
-			BuildLinePolygon(dot, true, dot.horizontalLine, bufferLists); 
+			BuildLinePolygon(dot, true, dot.horizontalLine, bufferLists, lastMove); 
 		}
 		if (dot.verticalLine && dot.verticalLine != Ownership.NONE) {
-			BuildLinePolygon(dot, false, dot.verticalLine, bufferLists); 
+			BuildLinePolygon(dot, false, dot.verticalLine, bufferLists, lastMove); 
 		}
 	});
 	const buffers = BuildBuffersFromLists(gl, bufferLists);
@@ -297,7 +308,7 @@ function DrawUsingBuffersAndCleanup(gl, buffers, program, glVertCount) {
 	gl.deleteBuffer(vertexIndexBuffer);
 }
 
-export function RenderGame(canvas, state) {
+export function RenderGame(canvas, state, lastMove) {
 	const size = state.boardSize;
 	const dots = state.boardState.points;
 	const squares = state.boardState.squares;
@@ -308,5 +319,5 @@ export function RenderGame(canvas, state) {
 		return;
 	}
 	DrawCells(gl, size, squares.flat());
-	DrawLines(gl, dots.flat());
+	DrawLines(gl, dots.flat(), lastMove);
 }
