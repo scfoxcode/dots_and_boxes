@@ -5,24 +5,23 @@ const Colours = {
 	BLACK: [0.0, 0.0, 0.0, 1.0],
 	PLAYER1: [1.0, 0.0, 0.0, 1.0],
 	PLAYER2: [0.0, 0.0, 1.0, 1.0],
+	BOARDGREY: [0.97, 0.97, 0.97, 1.0]
 };
 
-const dotsAndCellsVertexShaderCode = "\
+const cellsVertexShaderCode = "\
     attribute vec2 a_position;\
+    attribute vec4 a_colour;\
+	varying vec4 col;\
     void main() {\
+		col = a_colour;\
         gl_Position = vec4(a_position.xy, 0, 1);\
-    }\
+	}\
 ";
 
-const dotsAndCellsFragmentShaderCode = "\
+const cellsFragmentShaderCode = "\
 	precision mediump float;\
-	uniform sampler2D cell_lookup;\
-    void main() {\
-		float x = (gl_FragCoord.x / 1000.0);\
-		float y = (gl_FragCoord.y / 1000.0);\
-		vec4 cellColor = texture2D(cell_lookup, vec2(x, y));\
-		gl_FragColor = cellColor;\
-		\
+	varying vec4 col;\
+	void main() {\
 		float gridS = 1000.0 / 10.0;\
 		float halfG = gridS / 2.0;\
 		float a = 5.0;\
@@ -33,11 +32,10 @@ const dotsAndCellsFragmentShaderCode = "\
 			((dx < b || dx > (gridS - b)) && (dy < a || dy > (gridS - a)))){\
 			gl_FragColor = vec4(0.7, 0.7, 0.7, 1.0);\
 		} else {\
-			gl_FragColor = vec4(x, y, 0.0, 1.0);\
+			gl_FragColor = col;\
 		}\
-    }\
+	}\
 ";
-			// gl_FragColor = vec4(0.97, 0.97, 0.97, 1.0);\
 
 // @TODO - refactor shaders to handle any grid size. Currently locked to 10 dots
 const linesVertexShaderCode = "\
@@ -79,6 +77,12 @@ function UseShaders(gl, name, fBuildProgram) {
 	return gl.shaderMap[name]();
 }
 
+/**
+ * Function that returns a builder function for a given vertex and fragment shader
+ * gl - The open gl context for this shader
+ * vert - The raw vertex shader source code
+ * frag - The raw fragment shader source code
+ */
 function BuildShader(gl, vert, frag) {
     // Compile and attach shaders
     const vShader = gl.createShader(gl.VERTEX_SHADER);
@@ -101,55 +105,23 @@ function BuildShader(gl, vert, frag) {
 	}
 }
 
-function DotsAndCellsShaderBuilder(gl) {
-	return BuildShader(gl, dotsAndCellsVertexShaderCode, dotsAndCellsFragmentShaderCode);
+function CellsShaderBuilder(gl) {
+	return BuildShader(gl, cellsVertexShaderCode, cellsFragmentShaderCode);
 }
 
 function LineProgramShaderBuilder(gl) {
 	return BuildShader(gl, linesVertexShaderCode, linesFragmentShaderCode);
 }
 
-function BuildSquareOwnershipTexture(gl, boardSize, squares) {
-	const texture = gl.createTexture();
-	gl.bindTexture(gl.TEXTURE_2D, texture);
-
-	var floatTextures = gl.getExtension('OES_texture_float');
-	if (!floatTextures) {
-		alert('no floating point texture support');
-		return;
-	}
-
-	const colours = squares.map(square => {
-		if (square.ownership === Ownership.PLAYER1) {
-			return Colours.PLAYER1;
-		}
-		if (square.ownership === Ownership.PLAYER2) {
-			return Colours.PLAYER2;
-		}
-		return Colours.ALPHA; 
-	});;
-	// const pixels = new Uint8Array(colours.flat().map(c => c *= 256.0));
-	let someShitPixels = [];
-	for (let i=0; i<16*16; i++) {
-		someShitPixels.push(255);
-		someShitPixels.push(0);
-		someShitPixels.push(255);
-		someShitPixels.push(255);
-	}
-	const pixels = new Uint8Array(someShitPixels);
-	gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-	gl.texImage2D(
-		gl.TEXTURE_2D,
-		0,
-		gl.RGBA,
-		16, //boardSize - 1,
-		16, //boardSize - 1,
-		0,
-		gl.RGBA,
-		gl.UNSIGNED_BYTE,
-		pixels);
-
-	return texture;
+function BuildIndicesForPoly(vertexOffset) {
+	return [
+		vertexOffset,
+		vertexOffset + 1,
+		vertexOffset + 2,
+		vertexOffset + 2,
+		vertexOffset + 3,
+		vertexOffset
+	];
 }
 
 function BuildLinePolygon(dot, isHorizontal, owner, bufferLists) {
@@ -157,7 +129,7 @@ function BuildLinePolygon(dot, isHorizontal, owner, bufferLists) {
 	const thickness = 0.05;
 
 	let vertices = null;
-	let vertexOffset = bufferLists.vertices.length / 2; // Remember, 2 floats per vertex
+	const vertexOffset = bufferLists.vertices.length / 2; // Remember, 2 floats per vertex
 
 	if (isHorizontal) {
 		const yTop = y - thickness;
@@ -178,14 +150,7 @@ function BuildLinePolygon(dot, isHorizontal, owner, bufferLists) {
             xLeft, y + 1, 	// Bottom left
 		];
 	}	
-	const vertexIndices = [
-		vertexOffset,
-		vertexOffset + 1,
-		vertexOffset + 2,
-		vertexOffset + 2,
-		vertexOffset + 3,
-		vertexOffset
-	];
+	const vertexIndices = BuildIndicesForPoly(vertexOffset); 
 
 	vertices.forEach(vert => bufferLists.vertices.push(vert)); 
 	vertexIndices.forEach(index => bufferLists.vertexIndices.push(index)); 
@@ -196,21 +161,95 @@ function BuildLinePolygon(dot, isHorizontal, owner, bufferLists) {
 	}
 }
 
-// Will build new buffers
-function RebuildLineBuffers(gl, dots) {
-	const buffers = {
-		lineVertexBuffer: gl.createBuffer(),
-		lineVertexIndexBuffer: gl.createBuffer(),
-		lineColourBuffer: gl.createBuffer(),
-	};
+function BuildCellPolygon(square, bufferLists) {
+	const { x, y, owner } = square;
+	const rad = 50.0; // @TODO this number will be wrong
 
-	const bufferLists = {
+	const vertices = [
+		x - rad, y - rad, 	// Top left
+		x + rad, y - rad, 	// Top right
+		x + rad, y + rad,	// Bottom right 
+		x - rad, y + rad	// Bottom left
+	];
+	const vertexOffset = bufferLists.vertices.length / 2;
+	const vertexIndices = BuildIndicesForPoly(vertexOffset); 
+
+	vertices.forEach(vert => bufferLists.vertices.push(vert)); 
+	vertexIndices.forEach(index => bufferLists.vertexIndices.push(index)); 
+
+	let col = Colours.BOARDGREY;
+	if (owner === Ownership.PLAYER1) {
+		col = Colours.PLAYER1;
+	} else if (owner === Ownership.PLAYER2) {
+		col = Colours.PLAYER2;
+	}
+	for (let i=0; i<4; i++) {
+		col.forEach(c => bufferLists.colours.push(c));
+	}
+}
+
+function BuildBufferLists() {
+	return {
 		vertices: [],
 		vertexIndices: [],
-		colours: [],
+		colours: []
+	};
+}
+
+function BuildBuffersFromLists(gl, bufferLists) {
+	const buffers = {
+		vertexBuffer: gl.createBuffer(),
+		vertexIndexBuffer: gl.createBuffer(),
+		colourBuffer: gl.createBuffer()
 	};
 
-	// Build buffer lists for all the lines
+	// Build vertex buffer
+	gl.bindBuffer(gl.ARRAY_BUFFER, buffers.vertexBuffer);
+	gl.bufferData(
+		gl.ARRAY_BUFFER,
+		new Float32Array(bufferLists.vertices),
+		gl.STATIC_DRAW
+	);
+
+	// Build colour buffer
+	gl.bindBuffer(gl.ARRAY_BUFFER, buffers.colourBuffer);
+	gl.bufferData(
+		gl.ARRAY_BUFFER,
+		new Float32Array(bufferLists.colours),
+		gl.STATIC_DRAW
+	);
+
+	// Build vertex index buffer
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.vertexIndexBuffer);
+	gl.bufferData(
+		gl.ELEMENT_ARRAY_BUFFER,
+		new Uint16Array(bufferLists.vertexIndices),
+		gl.STATIC_DRAW
+	);
+
+	return buffers;
+}
+
+function DrawCells(gl, boardSize, squares) {
+	// Clear canvas 
+	gl.clearColor(1.0, 1.0, 1.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+	// Build buffers
+	const bufferLists = BuildBufferLists();
+	squares.forEach(square => BuildCellPolygon(square, bufferLists)); 
+	const buffers = BuildBuffersFromLists(gl, bufferLists);
+
+	// Draw cells
+	const program = UseShaders(gl, 'Cells', CellsShaderBuilder);
+	const glVertCount = bufferLists.vertexIndices.length;
+	console.log("Drawing squares verts", glVertCount, squares.length);
+	DrawUsingBuffersAndCleanup(gl, buffers, program, glVertCount);
+}
+
+function DrawLines(gl, dots=[]) {
+	// Build buffers
+	const bufferLists = BuildBufferLists();
 	dots.forEach(dot => {
 		if (dot.horizontalLine && dot.horizontalLine != Ownership.NONE) {
 			BuildLinePolygon(dot, true, dot.horizontalLine, bufferLists); 
@@ -219,106 +258,39 @@ function RebuildLineBuffers(gl, dots) {
 			BuildLinePolygon(dot, false, dot.verticalLine, bufferLists); 
 		}
 	});
+	const buffers = BuildBuffersFromLists(gl, bufferLists);
 
-	// Build vertex buffer
-	gl.bindBuffer(gl.ARRAY_BUFFER, buffers.lineVertexBuffer);
-	gl.bufferData(
-		gl.ARRAY_BUFFER,
-		new Float32Array(bufferLists.vertices),
-		gl.STATIC_DRAW
-	);
-
-	// Build colour buffer
-	gl.bindBuffer(gl.ARRAY_BUFFER, buffers.lineColourBuffer);
-	gl.bufferData(
-		gl.ARRAY_BUFFER,
-		new Float32Array(bufferLists.colours),
-		gl.STATIC_DRAW
-	);
-
-	// Build vertex index buffer
-	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.lineVertexIndexBuffer);
-	gl.bufferData(
-		gl.ELEMENT_ARRAY_BUFFER,
-		new Uint16Array(bufferLists.vertexIndices),
-		gl.STATIC_DRAW
-	);
-
-	return { buffers, glVertCount: bufferLists.vertexIndices.length };
+	// Draw lines
+	const program = UseShaders(gl, 'Lines', LineProgramShaderBuilder);
+	const glVertCount = bufferLists.vertexIndices.length;
+	DrawUsingBuffersAndCleanup(gl, buffers, program, glVertCount);
 }
 
-// This is the cross and cell shader
-function DrawGridAndCells(gl, size, squares) {
-	gl.clearColor(0.5, 0.0, 0.0, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
-    // Create mesh
-    const bufferMesh = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, bufferMesh);
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([
-            -1.0, -1.0,
-            1.0, -1.0,
-            -1.0, 1.0,
-            -1.0, 1.0,
-            1.0, -1.0,
-            1.0, 1.0,
-        ]),
-        gl.STATIC_DRAW
-    );
-
-	// Build texture
-	const texture = BuildSquareOwnershipTexture(gl, size, squares);
-
-	const program = UseShaders(gl, 'Dots_And_Cells', DotsAndCellsShaderBuilder);
-    gl.useProgram(program);
-
-    // Pass values to shaders
-    gl.bindBuffer(gl.ARRAY_BUFFER, bufferMesh);
-    const position = gl.getAttribLocation(program, 'a_position');
-    gl.enableVertexAttribArray(position);
-    gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
-
-	const cells = gl.getUniformLocation(program, 'cell_lookup');
-	gl.activeTexture(gl.TEXTURE0);
-	gl.bindTexture(gl.TEXTURE_2D, texture);
-	gl.uniform1i(cells, 0);
-
-	gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-	gl.disableVertexAttribArray(position);
-	gl.deleteBuffer(bufferMesh);
-}
-
-function DrawLines(gl, dots=[]) {
-	const { buffers, glVertCount } = RebuildLineBuffers(gl, dots);
+function DrawUsingBuffersAndCleanup(gl, buffers, program, glVertCount) {
 	const {
-		lineVertexBuffer,
-		lineVertexIndexBuffer,
-		lineColourBuffer,
+		vertexBuffer,
+		vertexIndexBuffer,
+		colourBuffer,
 	} = buffers;
 
-	const program = UseShaders(gl, 'Lines', LineProgramShaderBuilder);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, lineVertexBuffer);
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
     const position = gl.getAttribLocation(program, "a_position");
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
 
-	gl.bindBuffer(gl.ARRAY_BUFFER, lineColourBuffer);
+	gl.bindBuffer(gl.ARRAY_BUFFER, colourBuffer);
     const colour = gl.getAttribLocation(program, "a_colour");
     gl.enableVertexAttribArray(colour);
     gl.vertexAttribPointer(colour, 4, gl.FLOAT, false, 0, 0);
 
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lineVertexIndexBuffer);
-	gl.drawElements(gl.TRIANGLES, glVertCount, gl.UNSIGNED_SHORT, lineVertexIndexBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, vertexIndexBuffer);
+	gl.drawElements(gl.TRIANGLES, glVertCount, gl.UNSIGNED_SHORT, vertexIndexBuffer);
 
 	gl.disableVertexAttribArray(position);
 	gl.disableVertexAttribArray(colour);
-	gl.deleteBuffer(lineVertexBuffer);
-	gl.deleteBuffer(lineColourBuffer);
-	gl.deleteBuffer(lineVertexIndexBuffer);
+	gl.deleteBuffer(vertexBuffer);
+	gl.deleteBuffer(colourBuffer);
+	gl.deleteBuffer(vertexIndexBuffer);
 }
 
 export function RenderGame(canvas, state) {
@@ -331,7 +303,7 @@ export function RenderGame(canvas, state) {
 		alert('Failed to initialise WebGL!');
 		return;
 	}
-	DrawGridAndCells(gl, size, squares);
+	DrawCells(gl, size, squares.flat());
 	DrawLines(gl, dots.flat());
 }
 
