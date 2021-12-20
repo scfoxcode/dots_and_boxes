@@ -107,8 +107,13 @@ export function IsSquareComplete(square, points) {
 	ownershipValues.push(squarePoints[0].horizontalLine);
 	ownershipValues.push(squarePoints[0].verticalLine);
 	ownershipValues.push(squarePoints[1].verticalLine);
-	ownershipValues.push(squarePoints[2].horizontalLine);
-	return !ownershipValues.find(own => own === Ownership.NONE);
+	ownershipValues.push(squarePoints[3].horizontalLine);
+	const isCompleted = !ownershipValues.find(own => own === Ownership.NONE);
+	if (isCompleted) {
+		console.log("square was completed", ownershipValues);
+		debugger;
+	}
+	return isCompleted;
 }
 
 // Returns true if a square was captured
@@ -130,7 +135,7 @@ export function UpdateSquaresAfterValidMove(board, move, player) {
 	let squareWasCaptured = false;
 	squares.forEach(square => {
 		if (square.ownership === Ownership.NONE && IsSquareComplete(square, board.points)) {
-			square.ownershipo = player;
+			square.ownership = player;
 			squareWasCaptured = true;
 		}
 	});
