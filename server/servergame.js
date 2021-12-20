@@ -42,7 +42,8 @@ PlayGame.prototype.AddPlayer = function(socket) {
 PlayGame.prototype.AddObserver = function (socket) {
 	console.log('Observer connected');
 	this.observers.push(socket); // need to fix this request and encode state properly
-	socket.emit(SocketMessages.SET_PLAYER, {player: Ownership.OBSERVER, state: this.state});
+	socket.emit(SocketMessages.SET_PLAYER, {player: Ownership.OBSERVER});
+	this.UpdateObserver(socket);
 }
 
 PlayGame.prototype.StartGame = function () {
@@ -105,7 +106,7 @@ PlayGame.prototype.RequestMoveFromPlayer = function() {
 	player.emit(request.type, request); 
 }
 
-PlayGame.prototype.UpdateObserversGameState = function() {
+PlayGame.prototype.UpdateObserver = function(observer) {
 	const request = {
 		type: SocketMessages.STATE_UPDATE,
 		player: this.state.playersTurn,
@@ -115,9 +116,11 @@ PlayGame.prototype.UpdateObserversGameState = function() {
 			encodedLastMove: this.move ? EncodeMove(this.move) : null,
 		},
 	};
+	observer.emit(request.type, request);
+}
 
-	// Update all the observers
-	this.observers.forEach(observer => observer.emit(request.type, request));
+PlayGame.prototype.UpdateObserversGameState = function() {
+	this.observers.map(this.UpdateObserver.bind(this));
 }
 
 PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {

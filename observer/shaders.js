@@ -3,8 +3,8 @@ import { Ownership } from '../shared/gamestate'
 const Colours = {
 	ALPHA: [0.0, 0.0, 0.0, 0.0],
 	BLACK: [0.0, 0.0, 0.0, 1.0],
-	PLAYER1: [1.0, 0.0, 0.0, 1.0],
-	PLAYER2: [0.0, 0.0, 1.0, 1.0],
+	PLAYER1: [1.0, 0.0, 0.0, 0.5],
+	PLAYER2: [0.0, 0.0, 1.0, 0.5],
 	BOARDGREY: [0.97, 0.97, 0.97, 1.0]
 };
 
@@ -43,7 +43,7 @@ const linesVertexShaderCode = "\
     attribute vec4 a_colour;\
 	varying vec4 col;\
     void main() {\
-		col = a_colour;\
+		col = vec4(a_colour.xyz, 0.9);\
 		float magicSize = 5.0;\
 		float gridS = 1000.0 / 10.0;\
 		float halfG = gridS / 2.0;\
@@ -162,14 +162,17 @@ function BuildLinePolygon(dot, isHorizontal, owner, bufferLists) {
 }
 
 function BuildCellPolygon(square, bufferLists) {
-	const { x, y, owner } = square;
-	const rad = 50.0; // @TODO this number will be wrong
+	const { ownership } = square;
+	const space = 2.0 / 10.0; // replace 10 with num dots
+	const half= space * 0.5;
+	const x = square.x * space + space -1.0;
+	const y = -1.0* (square.y * space + space -1.0); // Flip to match lines
 
 	const vertices = [
-		x - rad, y - rad, 	// Top left
-		x + rad, y - rad, 	// Top right
-		x + rad, y + rad,	// Bottom right 
-		x - rad, y + rad	// Bottom left
+		x - half, y - half, // Top left
+		x + half, y - half, // Top right
+		x + half, y + half,	// Bottom right 
+		x - half, y + half 	// Bottom left
 	];
 	const vertexOffset = bufferLists.vertices.length / 2;
 	const vertexIndices = BuildIndicesForPoly(vertexOffset); 
@@ -178,9 +181,9 @@ function BuildCellPolygon(square, bufferLists) {
 	vertexIndices.forEach(index => bufferLists.vertexIndices.push(index)); 
 
 	let col = Colours.BOARDGREY;
-	if (owner === Ownership.PLAYER1) {
+	if (ownership === Ownership.PLAYER1) {
 		col = Colours.PLAYER1;
-	} else if (owner === Ownership.PLAYER2) {
+	} else if (ownership === Ownership.PLAYER2) {
 		col = Colours.PLAYER2;
 	}
 	for (let i=0; i<4; i++) {

@@ -109,10 +109,6 @@ export function IsSquareComplete(square, points) {
 	ownershipValues.push(squarePoints[1].verticalLine);
 	ownershipValues.push(squarePoints[3].horizontalLine);
 	const isCompleted = !ownershipValues.find(own => own === Ownership.NONE);
-	if (isCompleted) {
-		console.log("square was completed", ownershipValues);
-		debugger;
-	}
 	return isCompleted;
 }
 
