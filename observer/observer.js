@@ -31,8 +31,12 @@ window.Connect = function () {
 	});
 
 	socket.on(gamestate.SocketMessages.STATE_UPDATE, msg => {
-		// console.log('Game state received', msg);
-		console.log('Last move', msg.data.encodedLastMove);
+		// Set player names
+		const p1 = document.getElementById('PLAYER1_NAME');
+		const p2 = document.getElementById('PLAYER2_NAME');
+		p1.textContent = msg.playerNames[gamestate.Ownership.PLAYER1];
+		p2.textContent = msg.playerNames[gamestate.Ownership.PLAYER2];
+
 		const canvas = document.getElementById('gameCanvas');
 		const decodedState = DecodeGameState(msg.data.encodedGameState);
 		let decodedMove = null;

@@ -15,3 +15,6 @@ Todo:
 - Add the move time restrictions - TODO
 - Make it much easier to run tests/dev - TODO
 - Add extra game modes, screensaver and solo, quality of life change - TODO
+- Players should submit a name on joining, and recieve their colour in the response - TODO
+- Observer should display player name and colour - TODO
+- Observer should display game over condition and reason (victory, illegal move, late move etc)- TODO

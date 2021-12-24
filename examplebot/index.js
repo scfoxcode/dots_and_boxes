@@ -68,7 +68,8 @@ const commands = {
 			console.log(`Socket connecting on address: ${wsAddress}`);
 			socket = io(wsAddress, {
 				query: {
-					type: 'PLAYER'
+					type: 'PLAYER',
+					name: 'Example Bot'
 				}
 			});
             ListenForServerMessages();

@@ -1,8 +1,12 @@
-import { GameState, Ownership, SocketMessages } from '../shared/gamestate.js';
+import {
+	GameState,
+	Ownership,
+	SocketMessages,
+	Modes } from '../shared/gamestate.js';
+
 import {
 	EncodeGameState,
 	EncodeMove,
-	DecodeGameState,
 	DecodeMove,
 } from '../shared/networking.js'; 
 import uuid4 from 'uuid4';
@@ -29,13 +33,13 @@ PlayGame.prototype.Init = function (boardSize = 8, playersTurn = Ownership.PLAYE
 
 PlayGame.prototype.NextRound = function () {
 	this.round += 1;
-	this.players.PLAYER1.removeAllListeners([SocketMessages.SEND_MOVE]);
-	this.players.PLAYER2.removeAllListeners([SocketMessages.SEND_MOVE]);
+	this.players.PLAYER1.socket.removeAllListeners([SocketMessages.SEND_MOVE]);
+	this.players.PLAYER2.socket.removeAllListeners([SocketMessages.SEND_MOVE]);
 	this.Init(this.state.boardSize, this.round % 2 === 0 ? Ownership.PLAYER2 : Ownership.PLAYER1);
-	this.StartGame(); // need to remove listeners before this
+	this.StartGame(this.mode); // need to remove listeners before this
 }
 
-PlayGame.prototype.AddPlayer = function(socket) {
+PlayGame.prototype.AddPlayer = function(socket, name = 'BillyNoNames') {
 	console.log('Player connected');
 	if (this.players[Ownership.PLAYER1] && this.players[Ownership.PLAYER2]) {
 		socket.disconnect();
@@ -43,7 +47,9 @@ PlayGame.prototype.AddPlayer = function(socket) {
 		return;
 	}
 	const freeSlot = this.players[Ownership.PLAYER1] ? Ownership.PLAYER2: Ownership.PLAYER1;
-	this.players[freeSlot] = socket;
+
+	this.players[freeSlot] = {socket, name};
+
     console.log("Player joined in slot", freeSlot);
 	socket.emit(SocketMessages.SET_PLAYER, freeSlot);
 
@@ -51,13 +57,20 @@ PlayGame.prototype.AddPlayer = function(socket) {
 
 PlayGame.prototype.AddObserver = function (socket) {
 	console.log('Observer connected');
-	this.observers.push(socket); // need to fix this request and encode state properly
+	this.observers.push(socket);
 	socket.emit(SocketMessages.SET_PLAYER, {player: Ownership.OBSERVER});
 	this.UpdateObserver(socket);
 }
 
-PlayGame.prototype.StartGame = function () {
+PlayGame.prototype.StartGame = function (mode = Modes.STANDARD) {
 	this.started = true;
+	this.mode = mode;
+
+	if (mode === Modes.SOLO) {
+		// Create virtual player
+	} else if (mode === Modes.SCREENSAVER) {
+		// Create two virtual players and loop on game over
+	}
 
 	// Listen for player moves 
 	const playerKeys = Object.keys(this.players);
@@ -66,7 +79,7 @@ PlayGame.prototype.StartGame = function () {
             console.log('Player key', key);
             throw new Error('Not all players have connected. Throwing a tantrum');
         }
-		const player = this.players[key];
+		const player = this.players[key].socket;
 		player.on(SocketMessages.SEND_MOVE, response => {
 			console.log(`Received move from player  ${key}`);
 			/*
@@ -94,7 +107,7 @@ PlayGame.prototype.RequestMoveFromPlayer = function() {
 	const turn = this.state.playersTurn;
 
 	// Get the socket for this player
-	const player = this.players[turn]; 
+	const player = this.players[turn].socket; 
 
 	// Build a request for the player, containing all the data they need
 	const request = {
@@ -120,6 +133,10 @@ PlayGame.prototype.UpdateObserver = function(observer) {
 	const request = {
 		type: SocketMessages.STATE_UPDATE,
 		player: this.state.playersTurn,
+		playerNames: {
+			[Ownership.PLAYER1]: this.players[Ownership.PLAYER1]?.name,
+			[Ownership.PLAYER2]: this.players[Ownership.PLAYER2]?.name
+		},
 		sentAt: new Date,
 		data: {
 			encodedGameState: EncodeGameState(this.state),

@@ -8,7 +8,7 @@ const Colours = {
 	PLAYER2: [0.17, 0.73, 0.96, 1.0],
 	PLAYER1LINE: [1.0, 0.6, 0.6, 1.0],
 	PLAYER2LINE: [0.6, 0.6, 1.0, 1.0],
-	BOARDGREY: [0.97, 0.97, 0.97, 1.0]
+	BOARDCOLOUR: [0.6, 0.6, 0.6, 1.0]
 };
 
 const cellsVertexShaderCode = "\
@@ -196,7 +196,7 @@ function BuildCellPolygon(square, bufferLists, gridSize) {
 	vertices.forEach(vert => bufferLists.vertices.push(vert)); 
 	vertexIndices.forEach(index => bufferLists.vertexIndices.push(index)); 
 
-	let col = Colours.BOARDGREY;
+	let col = Colours.BOARDCOLOUR;
 	if (ownership === Ownership.PLAYER1) {
 		col = Colours.PLAYER1;
 	} else if (ownership === Ownership.PLAYER2) {
@@ -251,7 +251,7 @@ function BuildBuffersFromLists(gl, bufferLists) {
 
 function DrawCells(gl, gridSize, squares) {
 	// Clear canvas 
-	gl.clearColor(...Colours.BOARDGREY);
+	gl.clearColor(...Colours.BOARDCOLOUR);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
 	// Build buffers
@@ -262,7 +262,6 @@ function DrawCells(gl, gridSize, squares) {
 	// Draw cells
 	const program = UseShaders(gl, 'Cells', CellsShaderBuilder);
 	const glVertCount = bufferLists.vertexIndices.length;
-	console.log("Drawing squares verts", glVertCount, squares.length);
 	DrawUsingBuffersAndCleanup(gl, buffers, program, glVertCount, gridSize);
 }
 

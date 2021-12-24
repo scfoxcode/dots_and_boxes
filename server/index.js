@@ -7,10 +7,10 @@ const config = JSON.parse(
 );
 
 const port = process.argv[2] || config.default_port;
+const mode = process.argv[3] || config.default_mode;
 
 // Create server, and initialise instance
 import { readFile } from 'fs/promises';
-
 import readline from 'readline';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -36,7 +36,7 @@ httpServer.listen(port, () => {
 io.on('connection', (socket) => {
 	switch (socket.handshake.query.type) {
 		case Ownership.PLAYER:
-			game.AddPlayer(socket);
+			game.AddPlayer(socket, socket.handshake.query.name);
 			break;
 		case Ownership.OBSERVER: 
 			game.AddObserver(socket);
@@ -76,14 +76,13 @@ const commands = {
 				console.log('A game is already in progress');
 			}
 		},
-		man: 'Starts a game. Requires two players to be connected'
+		man: 'Starts a game. Requires two players to be connected in standard mode. One player for solo'
 	},
 	'next round': {
 		action: () => {
 			if (!game.started) {
 				console.log('Cannot call "next round" before "start game"');
 			} else {
-				// Start next round
 				game.NextRound();
 			}
 		},

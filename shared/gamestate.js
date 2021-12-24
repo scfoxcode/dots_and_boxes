@@ -144,7 +144,7 @@ export function UpdateSquaresAfterValidMove(board, move, player) {
 	return squareWasCaptured;
 }
 
-// Trusn true if move is legal, also fills in errors list if provided
+// Returns true if move is legal, also fills in errors list if provided
 export function IsMoveLegal(board, move, errors) {
 	if (move.x >= board.size ||
 		move.y >= board.size ||
@@ -180,7 +180,6 @@ export function ApplyMoveToBoard(board, move, player) {
 		return captured;
 	}
 }
-
 
 export function GameState() {
 	this.turn = 0;

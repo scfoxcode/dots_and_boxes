@@ -1,5 +1,4 @@
 {
-	"modes": ["STANDARD", "SOLO", "SCREENSAVER"],
 	"default_mode": "STANDARD",
 	"default_port": 5000
 }
