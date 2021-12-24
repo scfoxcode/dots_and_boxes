@@ -1,3 +1,9 @@
+export const Modes = Object.freeze({
+	STANDARD: 'STANDARD',
+	SOLO: 'SOLO',
+	SCREENSAVER: 'SCREENSAVER'
+});
+
 export const Ownership = Object.freeze({
 	NONE: 'NONE',
 	PLAYER: 'PLAYER',
@@ -195,4 +201,15 @@ GameState.prototype.Init = function (boardSize = 10, playersTurn = Ownership.PLA
 GameState.prototype.SetWinner = function (winner) {
 	this.gameOver = true;
 	this.victor = winner;
+}
+
+GameState.prototype.TogglePlayerTurn = function(player) {
+	if (player) {
+		this.playersTurn = player;
+	} else {
+		this.playersTurn = this.playersTurn === Ownership.PLAYER1 ?
+		Ownership.PLAYER2 :
+		Ownership.PLAYER1;
+	}
+	return this.playersTurn;
 }

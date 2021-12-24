@@ -4,13 +4,14 @@ Notes:
 Fixed a lot of stuff last time
 
 Known issues:
-- Final move of the game is not transmitted to the observers
+- Final move of the game is not transmitted to the observers - FIXED
 
 Todo:
-- Fill in squares on observers
-- Only draw last line of each player in colour, all else dark grey
-- Clean everything up
+- Fill in squares on observers - COMPLETED
+- Only draw last line of each player in colour, all else dark grey - COMPLETED
+- Clean everything up - COMPLETED
 
 - ONLY AFTER THE ABOVE IS DONE
-- Add the move time restrictions
-- Make it much easier to run tests/dev
+- Add the move time restrictions - TODO
+- Make it much easier to run tests/dev - TODO
+- Add extra game modes, screensaver and solo, quality of life change - TODO

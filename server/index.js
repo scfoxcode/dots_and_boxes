@@ -1,6 +1,16 @@
-const port = process.argv[2] || 5000;
+
+// Read in server config
+const config = JSON.parse(
+	await readFile(
+		new URL('./config.json', import.meta.url)
+	)
+);
+
+const port = process.argv[2] || config.default_port;
 
 // Create server, and initialise instance
+import { readFile } from 'fs/promises';
+
 import readline from 'readline';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -13,7 +23,8 @@ const io = new Server(httpServer, {
 		}
 	}
 );
-const game = new PlayGame(); // Global game state object. Only 1 game may progress at a time
+
+const game = new PlayGame(16); // Global game state object. Only 1 game may progress at a time
 
 httpServer.listen(port, () => {
 	console.log(`Server listening on port ${port} ...\n`);
@@ -66,6 +77,27 @@ const commands = {
 			}
 		},
 		man: 'Starts a game. Requires two players to be connected'
+	},
+	'next round': {
+		action: () => {
+			if (!game.started) {
+				console.log('Cannot call "next round" before "start game"');
+			} else {
+				// Start next round
+				game.NextRound();
+			}
+		},
+		man: 'Starts a new round using the existing connections, swaps the players'
+	},
+	'swap player': {
+		action: () => {
+			if (game.started) {
+				console.log('Cannot swap player in a game that has already started');
+			} else {
+				game.TogglePlayerTurn();
+			}
+		},
+		man: 'Swaps the player positions before starting a game'
 	}
 }
 

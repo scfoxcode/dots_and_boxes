@@ -7,8 +7,15 @@ import {
 } from '../shared/networking.js'; 
 import uuid4 from 'uuid4';
 
-export function PlayGame() {
-	this.Init();
+export function PlayGame(boardSize) {
+	console.log('Building Game...');
+	this.players = {
+		PLAYER1: null,
+		PLAYER2: null,
+	};
+	this.observers = [];
+	this.round = 1;
+	this.Init(boardSize);
 }
 
 PlayGame.prototype.Init = function (boardSize = 8, playersTurn = Ownership.PLAYER1) {
@@ -16,13 +23,16 @@ PlayGame.prototype.Init = function (boardSize = 8, playersTurn = Ownership.PLAYE
 	this.state = new GameState();
 	this.started = false;
 	this.state.Init(boardSize, playersTurn);
-	this.players = {
-		PLAYER1: null,
-		PLAYER2: null,
-	};
-	this.observers = [];
 	this.move = null;
 	this.outstandingRequests = [];
+}
+
+PlayGame.prototype.NextRound = function () {
+	this.round += 1;
+	this.players.PLAYER1.removeAllListeners([SocketMessages.SEND_MOVE]);
+	this.players.PLAYER2.removeAllListeners([SocketMessages.SEND_MOVE]);
+	this.Init(this.state.boardSize, this.round % 2 === 0 ? Ownership.PLAYER2 : Ownership.PLAYER1);
+	this.StartGame(); // need to remove listeners before this
 }
 
 PlayGame.prototype.AddPlayer = function(socket) {
@@ -123,6 +133,10 @@ PlayGame.prototype.UpdateObserversGameState = function() {
 	this.observers.map(this.UpdateObserver.bind(this));
 }
 
+PlayGame.prototype.TogglePlayerTurn = function(player) {
+	return this.state.TogglePlayerTurn(player);
+}
+
 PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
 	setTimeout(() => { // @TODO - remove timout. add proper timing. This was just for debugging
     console.log("Received move");
@@ -151,19 +165,16 @@ PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
 		this.state.gameOver = true;
 	}
 
-
 	if (this.state.gameOver) {
 		console.log("game is over");
-		// Can we send a victory message then delete our own references?
-		// We probably want a server command to reset state, rather than it happen automatically
 	} else {
 		if (!squareWasCaptured) {
-			this.state.playersTurn = this.state.playersTurn === Ownership.PLAYER1 ? Ownership.PLAYER2 : Ownership.PLAYER1;
+			this.TogglePlayerTurn();
 		}
 		this.RequestMoveFromPlayer();
 	}
 	this.UpdateObserversGameState();
-	}, 100);
+	}, 250);
 }
 
 // Need to clear things up, clear the SEND_MOVE LISTENERS
