@@ -82,15 +82,7 @@ PlayGame.prototype.StartGame = function (mode = Modes.STANDARD) {
 		const player = this.players[key].socket;
 		player.on(SocketMessages.SEND_MOVE, response => {
 			console.log(`Received move from player  ${key}`);
-			/*
-			if (state.playerTurn !== key) {
-				this.console.log(`Player ${key} played a move when it was not their turn`);
-				// Disqualified
-				const winner = key === Ownership.PLAYER1 ? Ownership.PLAYER2 : Ownership.PLAYER1; 
-				this.state.SetWinner(winner);
-			}
-			*/
-			this.ReceiveMoveFromPlayer(response); // Move the above into this function
+			this.ReceiveMoveFromPlayer(response);
 		});
 	});
 
@@ -99,10 +91,37 @@ PlayGame.prototype.StartGame = function (mode = Modes.STANDARD) {
 	this.UpdateObserversGameState();
 }
 
+PlayGame.prototype.AddOutstandingRequest = function(request, ms) {
+	const self = this;
+	const timeout = setTimeout(() => {
+		console.log('Player took too long to respond to request', request);
+		const winner = request.player === Ownership.PLAYER1 ? Ownership.PLAYER2 : Ownership.PLAYER1;
+		self.state.SetWinner(winner, `${request.player} took too long to respond to request ${request.requestId}`);
+	}, ms);	
+	this.outstandingRequests.push({
+		timeout,
+		request
+	});
+}
+
+PlayGame.prototype.RemoveOutstandingRequest = function(requestId) {
+	const index = this.outstandingRequests.findIndex(({request}) => request.requestId === requestId);
+	if (index > -1) {
+		const req = this.outstandingRequests[index];
+		if (req.timeout) {
+			clearTimeout(req.timeout);
+		}
+		this.outstandingRequests.splice(index, 1);
+		return req.request;
+	}
+	return null;
+}
+
 PlayGame.prototype.RequestMoveFromPlayer = function() {
+	const timeAllowedInMs = 2000
 	const time = new Date();
 	const expected = new Date();
-	expected.setSeconds(time.getSeconds() + 2);
+	expected.setSeconds(time.getSeconds() + timeAllowedInMs * 0.001);
 
 	const turn = this.state.playersTurn;
 
@@ -122,7 +141,7 @@ PlayGame.prototype.RequestMoveFromPlayer = function() {
             // when responding, players may only send data.encodedMove
 		},
 	};
-	this.outstandingRequests.push(request);
+	this.AddOutstandingRequest(request, timeAllowedInMs);
 
 	// Send move to player
     console.log('Requesting move from player');
@@ -155,6 +174,11 @@ PlayGame.prototype.TogglePlayerTurn = function(player) {
 }
 
 PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
+	if (this.state.gameOver) {
+		return; // Ignore any moves if game is already over
+	}
+	const storedRequest = this.RemoveOutstandingRequest(response.requestId);
+
 	setTimeout(() => { // @TODO - remove timout. add proper timing. This was just for debugging
     console.log("Received move");
 	// Check the move is from the expected player. If not, mark it as illegal and game over
@@ -163,7 +187,7 @@ PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
         console.log("Response was missing encoded move");
         // @TODO fail because move was not received. Declare other player the winner
     }
-    if (!response?.requestId || !this.outstandingRequests.find(r => r.requestId === response.requestId)) {
+    if (!response?.requestId || !this.outstandingRequests.find(({request}) => request.requestId === response.requestId)) {
         console.log("RequestId does not match");
         // This response does not match a request. Declare other player the winner
     }

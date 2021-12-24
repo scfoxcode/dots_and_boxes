@@ -185,6 +185,7 @@ export function GameState() {
 	this.turn = 0;
 	this.gameOver = false;
 	this.victor = Ownership.NONE;
+	this.reason = '';
 	this.playersTurn = Ownership.NONE; 
 	this.boardSize = 10; // Board is always square, this is the number of dots. // Not respected by shaders yet
 	this.boardState = null; // Will contain a board object
@@ -197,9 +198,10 @@ GameState.prototype.Init = function (boardSize = 10, playersTurn = Ownership.PLA
 	this.boardState.Init();
 }
 
-GameState.prototype.SetWinner = function (winner) {
+GameState.prototype.SetWinner = function (winner, reason = 'You\'re simply the best!') {
 	this.gameOver = true;
 	this.victor = winner;
+	this.reason = reason;
 }
 
 GameState.prototype.TogglePlayerTurn = function(player) {
