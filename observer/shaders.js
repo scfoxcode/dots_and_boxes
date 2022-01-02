@@ -35,14 +35,13 @@ const cellsFragmentShaderCode = "\
 		float dy = mod(gl_FragCoord.y + halfG, gridS);\
 		if (((dx < a || dx > (gridS - a)) && (dy < b || dy > (gridS - b))) ||\
 			((dx < b || dx > (gridS - b)) && (dy < a || dy > (gridS - a)))){\
-			gl_FragColor = vec4(0.7, 0.7, 0.7, 1.0);\
+			gl_FragColor = vec4(0.8, 0.8, 0.8, 1.0);\
 		} else {\
 			gl_FragColor = col;\
 		}\
 	}\
 ";
 
-// @TODO - refactor shaders to handle any grid size. Currently locked to 10 dots
 const linesVertexShaderCode = "\
     attribute vec2 a_position;\
     attribute vec4 a_colour;\

@@ -5,6 +5,31 @@ body {
 
 #connectionForm {
 	display: block;
+	text-align: center;
+	margin-top: 2rem;
+	font-size: 1.5rem;
+	line-height: 1.5rem;
+	height: 1.5rem;
+	color: white;
+}
+
+label {
+	vertical-align: middle;
+	padding: 4px;
+}
+
+input {
+	width: 10rem;
+	height: 100%;
+	padding: 4px;
+	box-sizing: border-box;
+}
+
+button {
+	height: 100%;
+	padding: 4px;
+	cursor: pointer;
+	border: 0;
 }
 
 #gameGrid {
@@ -55,4 +80,5 @@ body {
 	object-fit: contain;
 	margin: 0;
 	padding: 0;
+	background-color: #999999;
 }

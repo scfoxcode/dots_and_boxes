@@ -24,8 +24,14 @@ export function PlayGame(boardSize, mode=Modes.STANDARD) {
 	this.observers = [];
 	this.round = 1;
 	this.Init(boardSize);
+
 	if (mode === Modes.SCREENSAVER) {
-		this.StartGame();
+		const playForever = () => {
+			setTimeout(() => {
+				this.NextRound(playForever);
+			}, 3000);
+		};
+		this.StartGame(playForever);
 	}
 }
 
@@ -38,12 +44,12 @@ PlayGame.prototype.Init = function (boardSize = 8, playersTurn = Ownership.PLAYE
 	this.outstandingRequests = [];
 }
 
-PlayGame.prototype.NextRound = function () {
+PlayGame.prototype.NextRound = function (callback) {
 	this.round += 1;
 	this.players.PLAYER1.socket.removeAllListeners([SocketMessages.SEND_MOVE]);
 	this.players.PLAYER2.socket.removeAllListeners([SocketMessages.SEND_MOVE]);
 	this.Init(this.state.boardSize, this.round % 2 === 0 ? Ownership.PLAYER2 : Ownership.PLAYER1);
-	this.StartGame();
+	this.StartGame(callback);
 }
 
 PlayGame.prototype.AddPlayer = function(socket, name = 'BillyNoNames', type=PlayerType.REMOTE_BOT) {
@@ -66,6 +72,7 @@ PlayGame.prototype.AddPlayer = function(socket, name = 'BillyNoNames', type=Play
     console.log(`Player joined in slot ${freeSlot}`);
 
 	socket.emit(SocketMessages.SET_PLAYER, freeSlot);
+	this.UpdateObserversGameState();
 }
 
 PlayGame.prototype.AddObserver = function (socket) {
@@ -75,8 +82,9 @@ PlayGame.prototype.AddObserver = function (socket) {
 	this.UpdateObserver(socket);
 }
 
-PlayGame.prototype.StartGame = function () {
+PlayGame.prototype.StartGame = function (callback) {
 	this.started = true;
+	this.state.SetGameOverCallback(callback);
 
 	// Clear existing local bots if any
 	let playerKeys = Object.keys(this.players);
@@ -225,12 +233,14 @@ PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
 		const legalMoves = this.state.boardState.GetLegalMoves();
 		console.log("legal moves left", legalMoves.length);
 		if (legalMoves.length <= 0) {
-			this.state.gameOver = true;
+			const winner = this.state.WhoOwnsMore();
+			this.state.SetWinner(winner);
 		}
 
 		if (this.state.gameOver) {
-			console.log("game is over");
-		} else {
+			console.log(`Game is over. ${this.state.victor} won.`);
+		}
+		else {
 			if (!squareWasCaptured) {
 				this.TogglePlayerTurn();
 			}
@@ -238,8 +248,4 @@ PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
 		}
 		this.UpdateObserversGameState();
 	}, 100);
-}
-
-// Need to clear things up, clear the SEND_MOVE LISTENERS
-PlayGame.prototype.EndGame = function() {
 }

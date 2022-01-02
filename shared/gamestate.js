@@ -113,6 +113,20 @@ Board.prototype.GetLegalMoves = function() {
 	return legalMoves;
 }
 
+Board.prototype.OwnedSquares = function() {
+	const results = {};
+	const squares = this.squares.flat();
+	squares.forEach(s => {
+		if (s.ownership && s.ownership !== Ownership.NONE) {
+			if (!results[s.ownership]) {
+				results[s.ownership] = 0;
+			}
+			results[s.ownership]++;
+		}
+	});
+	return results;
+}
+
 export function IsSquareComplete(square, points) {
 	const ownershipValues = [];
 	const squarePoints = square.GetPoints(points);
@@ -189,6 +203,7 @@ export function ApplyMoveToBoard(board, move, player) {
 
 export function GameState() {
 	this.turn = 0;
+	this.gameOverCallback = () => {};
 	this.gameOver = false;
 	this.victor = Ownership.NONE;
 	this.reason = '';
@@ -204,10 +219,30 @@ GameState.prototype.Init = function (boardSize = 10, playersTurn = Ownership.PLA
 	this.boardState.Init();
 }
 
+GameState.prototype.CountSquares = function() {
+	return this.boardState.OwnedSquares();
+}
+
+GameState.prototype.WhoOwnsMore = function() {
+	const squares = this.CountSquares();
+	if (squares.PLAYER1 > squares.PLAYER2) {
+		return Ownership.PLAYER1;
+	} else if (squares.PLAYER2 > squares.PLAYER1) {
+		return Ownership.PLAYER2;
+	} else {
+		return ownership.NONE;
+	}
+}
+
 GameState.prototype.SetWinner = function (winner, reason = 'You\'re simply the best!') {
 	this.gameOver = true;
 	this.victor = winner;
 	this.reason = reason;
+	this.gameOverCallback(this);
+}
+
+GameState.prototype.SetGameOverCallback = function(callback = () => {}) {
+	this.gameOverCallback = callback;
 }
 
 GameState.prototype.TogglePlayerTurn = function(player) {
