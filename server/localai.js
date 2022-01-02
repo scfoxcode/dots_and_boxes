@@ -3,10 +3,8 @@ import {
 	Ownership,
 } from '../shared/gamestate.js';
 
-import {
-	pickRandomMove,
-	buildMoveResponse,	
-} from '../examplebot/index.js';
+import { pickRandomMove, buildMoveResponse } from '../shared/utilities.js';
+
 
 // Used by the server for solo and screensaver game modes
 export function LocalAI() {

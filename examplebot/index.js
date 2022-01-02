@@ -1,3 +1,5 @@
+import { pickRandomMove, buildMoveResponse } from '../shared/utilities.js';
+
 const port = process.argv[2] || 5000;
 const DEV = process.argv[3] && process.argv[3] === 'dev';
 
@@ -5,32 +7,8 @@ const DEV = process.argv[3] && process.argv[3] === 'dev';
 import readline from 'readline';
 import { io } from 'socket.io-client';
 import { SocketMessages } from '../shared/gamestate.js';
-import { DecodeGameState, EncodeMove } from '../shared/networking.js';
 let socket = null;
 
-export function pickRandomMove(request) {
-	if (!request?.data?.encodedGameState) {
-		console.log('Server failed to send game state');
-	}
-	const gamestate = DecodeGameState(request.data.encodedGameState);
-	const legalMoves = gamestate.boardState.GetLegalMoves();
-	const moveIndex = Math.floor(Math.random() * legalMoves.length);
-	const chosenMove = legalMoves[moveIndex];
-	console.log("chosen move", chosenMove.x, ' , ', chosenMove.y);
-	return chosenMove;
-}
-
-export function buildMoveResponse(request, move) {
-	const response = {
-		type: SocketMessages.SEND_MOVE,
-		player: request.turn,
-		requestId: request.requestId, 
-		data: {
-			encodedMove: EncodeMove(move),
-		},
-	};
-	return response;
-}
 
 function ListenForServerMessages() {
     if (!socket) {
