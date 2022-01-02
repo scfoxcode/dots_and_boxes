@@ -1,4 +1,5 @@
 {
 	"default_mode": "STANDARD",
-	"default_port": 5000
+	"default_port": 5000,
+	"board_size": 8
 }

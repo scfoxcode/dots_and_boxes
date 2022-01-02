@@ -2,6 +2,7 @@ import {
 	GameState,
 	Ownership,
 	SocketMessages,
+	PlayerType,
 	Modes } from '../shared/gamestate.js';
 
 import {
@@ -11,8 +12,11 @@ import {
 } from '../shared/networking.js'; 
 import uuid4 from 'uuid4';
 
-export function PlayGame(boardSize) {
+import { LocalAI } from './localai.js';
+
+export function PlayGame(boardSize, mode=Modes.STANDARD) {
 	console.log('Building Game...');
+	this.mode = mode;
 	this.players = {
 		PLAYER1: null,
 		PLAYER2: null,
@@ -20,6 +24,9 @@ export function PlayGame(boardSize) {
 	this.observers = [];
 	this.round = 1;
 	this.Init(boardSize);
+	if (mode === Modes.SCREENSAVER) {
+		this.StartGame();
+	}
 }
 
 PlayGame.prototype.Init = function (boardSize = 8, playersTurn = Ownership.PLAYER1) {
@@ -36,23 +43,29 @@ PlayGame.prototype.NextRound = function () {
 	this.players.PLAYER1.socket.removeAllListeners([SocketMessages.SEND_MOVE]);
 	this.players.PLAYER2.socket.removeAllListeners([SocketMessages.SEND_MOVE]);
 	this.Init(this.state.boardSize, this.round % 2 === 0 ? Ownership.PLAYER2 : Ownership.PLAYER1);
-	this.StartGame(this.mode); // need to remove listeners before this
+	this.StartGame();
 }
 
-PlayGame.prototype.AddPlayer = function(socket, name = 'BillyNoNames') {
-	console.log('Player connected');
+PlayGame.prototype.AddPlayer = function(socket, name = 'BillyNoNames', type=PlayerType.REMOTE_BOT) {
+	console.log(`Player "${name}"(${type}) connected`);
+
+	if (!socket) {
+		socket = new LocalAI();
+	}
+
 	if (this.players[Ownership.PLAYER1] && this.players[Ownership.PLAYER2]) {
 		socket.disconnect();
 		console.log('Player cannot join, both spots are filled');
 		return;
 	}
+
 	const freeSlot = this.players[Ownership.PLAYER1] ? Ownership.PLAYER2: Ownership.PLAYER1;
 
-	this.players[freeSlot] = {socket, name};
+	this.players[freeSlot] = {socket, name, type };
 
-    console.log("Player joined in slot", freeSlot);
+    console.log(`Player joined in slot ${freeSlot}`);
+
 	socket.emit(SocketMessages.SET_PLAYER, freeSlot);
-
 }
 
 PlayGame.prototype.AddObserver = function (socket) {
@@ -62,39 +75,49 @@ PlayGame.prototype.AddObserver = function (socket) {
 	this.UpdateObserver(socket);
 }
 
-PlayGame.prototype.StartGame = function (mode = Modes.STANDARD) {
+PlayGame.prototype.StartGame = function () {
 	this.started = true;
-	this.mode = mode;
 
-	if (mode === Modes.SOLO) {
-		// Create virtual player
-	} else if (mode === Modes.SCREENSAVER) {
-		// Create two virtual players and loop on game over
+	// Clear existing local bots if any
+	let playerKeys = Object.keys(this.players);
+	playerKeys.forEach(key => {
+		if (this.players[key] && this.players[key].type === PlayerType.LOCAL_BOT) {
+			this.players[key] = null;
+		}
+	});
+
+	if (this.mode === Modes.SOLO) {
+		this.AddPlayer(null, 'Server_Bot', PlayerType.LOCAL_BOT);
+	} else if (this.mode === Modes.SCREENSAVER) {
+		this.AddPlayer(null, 'Server_Bot_1', PlayerType.LOCAL_BOT);
+		this.AddPlayer(null, 'Server_Bot_2', PlayerType.LOCAL_BOT);
 	}
 
 	// Listen for player moves 
-	const playerKeys = Object.keys(this.players);
+	playerKeys = Object.keys(this.players);
 	playerKeys.forEach(key => {
-        if (!this.players[key]) {
-            console.log('Player key', key);
-            throw new Error('Not all players have connected. Throwing a tantrum');
-        }
+		if (!this.players[key]) {
+			console.log('Player key', key);
+			throw new Error('Not all players have connected. Throwing a tantrum');
+		}
 		const player = this.players[key].socket;
 		player.on(SocketMessages.SEND_MOVE, response => {
-			console.log(`Received move from player  ${key}`);
+			console.log(`Received move from player ${key}`);
 			this.ReceiveMoveFromPlayer(response);
 		});
 	});
 
 	// Sent initial move request
 	this.RequestMoveFromPlayer();
+	
+	// Always update any connected observers
 	this.UpdateObserversGameState();
 }
 
 PlayGame.prototype.AddOutstandingRequest = function(request, ms) {
 	const self = this;
 	const timeout = setTimeout(() => {
-		console.log('Player took too long to respond to request', request);
+		console.log(`Player "${request.player}" took too long to respond to request`, request);
 		const winner = request.player === Ownership.PLAYER1 ? Ownership.PLAYER2 : Ownership.PLAYER1;
 		self.state.SetWinner(winner, `${request.player} took too long to respond to request ${request.requestId}`);
 	}, ms);	
@@ -138,7 +161,6 @@ PlayGame.prototype.RequestMoveFromPlayer = function() {
 		data: {
 			encodedGameState: EncodeGameState(this.state),
 			encodedLastMove: this.move ? EncodeMove(this.move) : null,
-            // when responding, players may only send data.encodedMove
 		},
 	};
 	this.AddOutstandingRequest(request, timeAllowedInMs);
@@ -177,45 +199,45 @@ PlayGame.prototype.ReceiveMoveFromPlayer = function (response) {
 	if (this.state.gameOver) {
 		return; // Ignore any moves if game is already over
 	}
-	const storedRequest = this.RemoveOutstandingRequest(response.requestId);
 
-	setTimeout(() => { // @TODO - remove timout. add proper timing. This was just for debugging
-    console.log("Received move");
-	// Check the move is from the expected player. If not, mark it as illegal and game over
-    const encodedMove = response?.data?.encodedMove;
-    if (!encodedMove) {
-        console.log("Response was missing encoded move");
-        // @TODO fail because move was not received. Declare other player the winner
-    }
-    if (!response?.requestId || !this.outstandingRequests.find(({request}) => request.requestId === response.requestId)) {
-        console.log("RequestId does not match");
-        // This response does not match a request. Declare other player the winner
-    }
-    
-    console.log("Decode the move");
-    const move = DecodeMove(encodedMove);
-	this.move = move;
-	this.move.madeBy = this.state.playersTurn;
-
-	const squareWasCaptured = this.state.boardState.ApplyMove(move, this.state.playersTurn);
-
-	// Check for legal moves. If none, game over
-	const legalMoves = this.state.boardState.GetLegalMoves();
-	console.log("legal moves left", legalMoves.length);
-	if (legalMoves.length <= 0) {
-		this.state.gameOver = true;
-	}
-
-	if (this.state.gameOver) {
-		console.log("game is over");
-	} else {
-		if (!squareWasCaptured) {
-			this.TogglePlayerTurn();
+	setTimeout(() => { // We want a minimum delay between moves 
+		// Check the move is from the expected player. If not, mark it as illegal and game over
+		const encodedMove = response?.data?.encodedMove;
+		if (!encodedMove) {
+			console.log("Response was missing encoded move");
+			// @TODO fail because move was not received. Declare other player the winner
 		}
-		this.RequestMoveFromPlayer();
-	}
-	this.UpdateObserversGameState();
-	}, 250);
+		if (!response?.requestId || !this.outstandingRequests.find(({request}) => request.requestId === response.requestId)) {
+			console.log(`RequestId "${response?.requestId}" does not match`);
+			return; // Ignore requests that do not match
+			// This response does not match a request. Declare other player the winner
+		}
+		this.RemoveOutstandingRequest(response.requestId);
+		
+		console.log("Decode the move");
+		const move = DecodeMove(encodedMove);
+		this.move = move;
+		this.move.madeBy = this.state.playersTurn;
+
+		const squareWasCaptured = this.state.boardState.ApplyMove(move, this.state.playersTurn);
+
+		// Check for legal moves. If none, game over
+		const legalMoves = this.state.boardState.GetLegalMoves();
+		console.log("legal moves left", legalMoves.length);
+		if (legalMoves.length <= 0) {
+			this.state.gameOver = true;
+		}
+
+		if (this.state.gameOver) {
+			console.log("game is over");
+		} else {
+			if (!squareWasCaptured) {
+				this.TogglePlayerTurn();
+			}
+			this.RequestMoveFromPlayer();
+		}
+		this.UpdateObserversGameState();
+	}, 100);
 }
 
 // Need to clear things up, clear the SEND_MOVE LISTENERS

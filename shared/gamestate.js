@@ -1,3 +1,8 @@
+export const PlayerType = Object.freeze({
+	LOCAL_BOT: 'LOCAL_BOT',
+	REMOTE_BOT: 'REMOTE_BOT'
+});
+
 export const Modes = Object.freeze({
 	STANDARD: 'STANDARD',
 	SOLO: 'SOLO',
@@ -14,7 +19,8 @@ export const Ownership = Object.freeze({
 
 export const Errors = Object.freeze({
 	ILLEGALMOVE: 'ILLEGALMOVE',
-	NOT_THIS_PLAYERS_TURN: 'NOT_THIS_PLAYERS_TURN'
+	NOT_THIS_PLAYERS_TURN: 'NOT_THIS_PLAYERS_TURN',
+	TOO_LATE: 'TOO_LATE'
 });
 
 export const SocketMessages = Object.freeze({

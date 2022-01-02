@@ -16,6 +16,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { PlayGame } from './servergame.js';
 import { Ownership } from '../shared/gamestate.js';
+
 const httpServer = createServer();
 const io = new Server(httpServer, { 
 		cors: {
@@ -24,7 +25,7 @@ const io = new Server(httpServer, {
 	}
 );
 
-const game = new PlayGame(16); // Global game state object. Only 1 game may progress at a time
+const game = new PlayGame(config.board_size, mode); // Global game state object. Only 1 game may progress at a time
 
 httpServer.listen(port, () => {
 	console.log(`Server listening on port ${port} ...\n`);
@@ -70,7 +71,7 @@ const commands = {
 	'start game': {
 		action: () => {
 			if (!game.started) {
-				console.log('Starting Game...');
+				console.log(`Starting Game (mode=${mode}) ...`);
 				game.StartGame();
 			} else {
 				console.log('A game is already in progress');

@@ -8,7 +8,7 @@ import { SocketMessages } from '../shared/gamestate.js';
 import { DecodeGameState, EncodeMove } from '../shared/networking.js';
 let socket = null;
 
-function pickMoveAndRespond(request) {
+export function pickRandomMove(request) {
 	if (!request?.data?.encodedGameState) {
 		console.log('Server failed to send game state');
 	}
@@ -17,16 +17,19 @@ function pickMoveAndRespond(request) {
 	const moveIndex = Math.floor(Math.random() * legalMoves.length);
 	const chosenMove = legalMoves[moveIndex];
 	console.log("chosen move", chosenMove.x, ' , ', chosenMove.y);
+	return chosenMove;
+}
+
+export function buildMoveResponse(request, move) {
 	const response = {
 		type: SocketMessages.SEND_MOVE,
 		player: request.turn,
 		requestId: request.requestId, 
 		data: {
-			encodedMove: EncodeMove(chosenMove),
+			encodedMove: EncodeMove(move),
 		},
 	};
-	socket.emit(response.type, response);
-	console.log(`Replied to server with legal move num ${moveIndex}`);
+	return response;
 }
 
 function ListenForServerMessages() {
@@ -35,7 +38,9 @@ function ListenForServerMessages() {
     }
 	socket.on(SocketMessages.REQUEST_MOVE, request => { 
 		console.log('Server requested a move', request);
-		pickMoveAndRespond(request);
+		const move = pickRandomMove(request);
+		const response = buildMoveResponse(request, move);
+		socket.emit(response.type, response);
 	});
 	socket.on(SocketMessages.STATE_UPDATE, data => { 
 		console.log('State update received. Doing nothing, not implemented', data);
